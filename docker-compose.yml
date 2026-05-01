@@ -1,0 +1,57 @@
+networks:
+  backend:
+    driver: bridge
+
+services:
+  lemonade-tq:
+    image: "${LEMONADE_IMAGE:-lemonade-tq:latest}"
+    restart: unless-stopped
+    ipc: shareable
+    container_name: lemonade-tq-server
+    devices:
+      - /dev/kfd
+      - /dev/dri
+      - /dev/mem
+    security_opt:
+      - seccomp=unconfined
+    networks:
+      - backend
+    ports:
+      - "13305:13305"
+    volumes:
+      - lemonade-tq-cache:/root/.cache/huggingface
+      - lemonade-tq-llama:/opt/lemonade/llama
+      - lemonade-tq-recipe:/root/.cache/lemonade
+      - ./config/config.json:/root/.cache/lemonade/config.json:rw
+      - ./config/recipe_options.json:/root/.cache/lemonade/recipe_options.json:rw
+      - ./config:/root/.config/lemonade:rw
+      - ./llama/hip/llama-server:/opt/lemonade/llama/hip/llama-server:ro
+      - /opt/rocm-7.2.2:/opt/rocm:ro
+    environment:
+      LEMONADE_LLAMACPP_BACKEND: rocm
+      LEMONADE_HOST: 0.0.0.0
+      LEMONADE_PORT: "13305"
+      HSA_OVERRIDE_GFX_VERSION: "11.0.0"
+      HIP_VISIBLE_DEVICES: "0,1,2"
+      LEMONADE_LLAMACPP_ARGS: "--sm tensor -ngl 99 -ctk turbo3 -ctv turbo3 --tensor-split 1,1,1"
+      LD_LIBRARY_PATH: /opt/rocm/lib
+    group_add:
+      - video
+      - 993
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:13305/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+        tag: "lemonade-tq"
+
+volumes:
+  lemonade-tq-cache:
+  lemonade-tq-llama:
+  lemonade-tq-recipe:
