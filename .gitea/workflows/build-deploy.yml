@@ -21,17 +21,17 @@ jobs:
       - name: Build Docker image
         run: |
           cd /tmp/lemonade-tq
-          docker build -t 192.168.50.11:5000/lemonade-tq:${{ github.ref_name }} .
+          docker build -t 192.168.50.11:5001/lemonade-tq:${{ github.ref_name }} .
 
       - name: Push to local registry
         run: |
-          docker push 192.168.50.11:5000/lemonade-tq:${{ github.ref_name }}
+          docker push 192.168.50.11:5001/lemonade-tq:${{ github.ref_name }}
 
       - name: Deploy to NAS
         run: |
           ssh -o StrictHostKeyChecking=no mkadrlik@192.168.50.11 << 'SSH_EOF'
             cd /home/mkadrlik/docker/lemonade-tq
-            sed -i "s|image: .*|image: 192.168.50.11:5000/lemonade-tq:${TAG}|g" docker-compose.yml
+            sed -i "s|image: .*|image: 192.168.50.11:5001/lemonade-tq:${TAG}|g" docker-compose.yml
             docker compose pull
             docker compose up -d
           SSH_EOF
