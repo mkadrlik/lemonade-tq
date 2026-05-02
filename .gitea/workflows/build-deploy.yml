@@ -8,6 +8,10 @@ jobs:
   build-and-deploy:
     runs-on: [self-hosted, rocm]
     steps:
+      - name: Cleanup previous run
+        run: |
+          rm -rf /tmp/lemonade-tq
+
       - name: Checkout code
         run: |
           git clone http://192.168.50.11:3042/mkadrlik/lemonade-tq.git /tmp/lemonade-tq
