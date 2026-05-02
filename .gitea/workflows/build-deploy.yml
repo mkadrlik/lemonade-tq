@@ -4,6 +4,15 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Image tag to build'
+        required: false
+        default: 'latest'
+      force_deploy:
+        description: 'Force deploy even if health check fails'
+        required: false
+        default: 'false'
 
 jobs:
   build-and-deploy:
@@ -28,9 +37,12 @@ jobs:
         run: |
           docker push 192.168.50.11:5001/lemonade-tq:${{ github.event.inputs.tag || github.ref_name }}
 
-      - name: Install SSH
+      - name: Prepare SSH
         run: |
-          apk update && apk add --no-cache openssh
+          mkdir -p /root/.ssh
+          chmod 700 /root/.ssh
+          rm -f /root/.ssh/config
+          touch /root/.ssh/known_hosts && chmod 644 /root/.ssh/known_hosts
 
       - name: Deploy to NAS
         run: |
