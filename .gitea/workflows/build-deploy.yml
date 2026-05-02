@@ -1,0 +1,29 @@
+name: Build & Deploy
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-deploy:
+    runs-on: [self-hosted, rocm]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: |
+          cd ~/docker/lemonade-tq
+          docker build -t 192.168.50.11:5000/lemonade-tq:${{ github.ref_name }} .
+
+      - name: Push to local registry
+        run: |
+          docker push 192.168.50.11:5000/lemonade-tq:${{ github.ref_name }}
+
+      - name: Deploy to NAS
+        run: |
+          ssh -o StrictHostKeyChecking=no mkadrlik@192.168.50.11 << 'SSH_EOF'
+            cd /home/mkadrlik/docker/lemonade-tq
+            sed -i "s/image: .*/image: 192.168.50.11:5000\/lemonade-tq:${{ github.ref_name }}/" docker-compose.yml
+            docker compose pull
+            docker compose up -d
+          SSH_EOF
