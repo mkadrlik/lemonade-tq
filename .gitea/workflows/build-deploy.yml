@@ -19,14 +19,12 @@ jobs:
     runs-on: [self-hosted, rocm]
     steps:
       - name: Cleanup previous run
-        run: |
-          rm -rf /tmp/lemonade-tq
+        run: rm -rf /tmp/lemonade-tq /tmp/.ssh
 
       - name: Checkout code
         run: |
           git clone --depth 1 http://192.168.50.11:3042/mkadrlik/lemonade-tq.git /tmp/lemonade-tq
-          cd /tmp/lemonade-tq
-          git checkout ${{ github.ref_name }}
+          cd /tmp/lemonade-tq && git checkout ${{ github.ref_name }}
 
       - name: Build Docker image
         run: |
@@ -34,19 +32,19 @@ jobs:
           docker build -t 192.168.50.11:5001/lemonade-tq:${{ github.event.inputs.tag || github.ref_name }} .
 
       - name: Push to local registry
-        run: |
-          docker push 192.168.50.11:5001/lemonade-tq:${{ github.event.inputs.tag || github.ref_name }}
+        run: docker push 192.168.50.11:5001/lemonade-tq:${{ github.event.inputs.tag || github.ref_name }}
 
       - name: Prepare SSH
         run: |
-          mkdir -p /root/.ssh
-          chmod 700 /root/.ssh
-          rm -f /root/.ssh/config
-          touch /root/.ssh/known_hosts && chmod 644 /root/.ssh/known_hosts
+          apk update && apk add --no-cache openssh
+          mkdir -p /tmp/.ssh && chmod 700 /tmp/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > /tmp/.ssh/id_ed25519
+          chmod 600 /tmp/.ssh/id_ed25519
+          ssh-keyscan -p 2222 192.168.50.11 >> /tmp/.ssh/known_hosts
 
       - name: Deploy to NAS
         run: |
-          ssh -o StrictHostKeyChecking=no mkadrlik@192.168.50.11 << 'SSH_EOF'
+          ssh -o StrictHostKeyChecking=no -i /tmp/.ssh/id_ed25519 mkadrlik@192.168.50.11 -p 2222 << 'SSH_EOF'
             cd /home/mkadrlik/docker/lemonade-tq
             docker compose down
             sed -i "s|image: .*|image: 192.168.50.11:5001/lemonade-tq:${TAG}|g" docker-compose.yml
@@ -59,9 +57,7 @@ jobs:
                 echo "⚠️ Health check failed but force_deploy=true, keeping deployment"
               else
                 echo "❌ Health check failed - rolling back"
-                docker compose down
-                git checkout docker-compose.yml
-                docker compose up -d
+                docker compose down && git checkout docker-compose.yml && docker compose up -d
                 exit 1
               fi
             fi

@@ -1,24 +1,22 @@
 name: Mirror to GitHub
 on:
   push:
-    branches: [main]
+    branches: [ main ]
   schedule:
-    - cron: '0 */6 * * *'  # Every 6 hours
-  workflow_dispatch:
+    - cron: '0 */6 * * *'
 
 jobs:
   mirror:
     runs-on: [self-hosted, rocm]
     steps:
-      - name: Checkout
-        run: |
-          git clone http://192.168.50.11:3042/mkadrlik/lemonade-tq.git /tmp/lemonade-tq-mirror
-          cd /tmp/lemonade-tq-mirror
+      - name: Cleanup previous run
+        run: rm -rf /tmp/lemonade-tq-mirror
+
+      - name: Checkout code
+        run: git clone http://192.168.50.11:3042/mkadrlik/lemonade-tq.git /tmp/lemonade-tq-mirror
 
       - name: Push to GitHub
         run: |
           cd /tmp/lemonade-tq-mirror
-          git remote add github https://${GITHUB_TOKEN}@github.com/mkadrlik/lemonade-tq.git 2>/dev/null || git remote set-url github https://${GITHUB_TOKEN}@github.com/mkadrlik/lemonade-tq.git
-          git push github main --force
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          git remote add github https://${{ secrets.GITHUB_TOKEN }}@github.com/mkadrlik/lemonade-tq.git 2>/dev/null || true
+          git push github main --tags
