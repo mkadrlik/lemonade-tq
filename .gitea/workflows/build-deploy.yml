@@ -30,7 +30,7 @@ jobs:
 
       - name: Install SSH
         run: |
-          apt-get update && apt-get install -y openssh-client
+          apt update && apt install -y --no-recommends openssh-client
 
       - name: Deploy to NAS
         run: |
