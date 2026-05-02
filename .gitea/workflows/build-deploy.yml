@@ -6,12 +6,17 @@ on:
 
 jobs:
   build-and-deploy:
-    runs-on: rocm
+    runs-on: [self-hosted, rocm]
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        run: |
+          git clone http://192.168.50.11:3042/mkadrlik/lemonade-tq.git /tmp/lemonade-tq
+          cd /tmp/lemonade-tq
+          git checkout ${{ github.ref_name }}
 
       - name: Build Docker image
         run: |
+          cd /tmp/lemonade-tq
           docker build -t 192.168.50.11:5000/lemonade-tq:${{ github.ref_name }} .
 
       - name: Push to local registry
@@ -22,7 +27,9 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no mkadrlik@192.168.50.11 << 'SSH_EOF'
             cd /home/mkadrlik/docker/lemonade-tq
-            sed -i "s/image: .*/image: 192.168.50.11:5000\/lemonade-tq:${{ github.ref_name }}/" docker-compose.yml
+            sed -i "s|image: .*|image: 192.168.50.11:5000/lemonade-tq:${TAG}|g" docker-compose.yml
             docker compose pull
             docker compose up -d
           SSH_EOF
+        env:
+          TAG: ${{ github.ref_name }}
