@@ -1,0 +1,16 @@
+# Binary artifacts (build from llama-cpp-*-tq repos)
+llama/
+
+# Home-lab specific configs (use home-lab branch)
+# Uncomment if working on main branch locally:
+# config/config.json
+# config/recipe_options.json
+# docker-compose.yml
+
+# Build artifacts
+*.tar
+*.zip
+
+# OS files
+.DS_Store
+Thumbs.db

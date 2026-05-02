@@ -14,6 +14,16 @@ on:
         required: false
         default: 'false'
 
+# Required repository secrets:
+#   SSH_PRIVATE_KEY  — Ed25519 key for deploy host access
+# Required repository variables:
+#   GITEA_URL         — e.g., http://gitea.internal:3042
+#   REGISTRY_URL      — e.g., registry.internal:5000
+#   DEPLOY_HOST       — e.g., nas.internal
+#   DEPLOY_USER       — e.g., deploy
+#   DEPLOY_SSH_PORT   — e.g., 2222
+#   DEPLOY_PATH       — e.g., /home/deploy/docker/lemonade-tq
+
 jobs:
   build-and-deploy:
     runs-on: [self-hosted, rocm]
@@ -23,16 +33,16 @@ jobs:
 
       - name: Checkout code
         run: |
-          git clone --depth 1 http://192.168.50.11:3042/mkadrlik/lemonade-tq.git /tmp/lemonade-tq
+          git clone --depth 1 "${{ vars.GITEA_URL }}/mkadrlik/lemonade-tq.git" /tmp/lemonade-tq
           cd /tmp/lemonade-tq && git checkout ${{ github.ref_name }}
 
       - name: Build Docker image
         run: |
           cd /tmp/lemonade-tq
-          docker build -t 192.168.50.11:5001/lemonade-tq:${{ github.event.inputs.tag || github.ref_name }} .
+          docker build -t "${{ vars.REGISTRY_URL }}/lemonade-tq:${{ github.event.inputs.tag || github.ref_name }}" .
 
-      - name: Push to local registry
-        run: docker push 192.168.50.11:5001/lemonade-tq:${{ github.event.inputs.tag || github.ref_name }}
+      - name: Push to registry
+        run: docker push "${{ vars.REGISTRY_URL }}/lemonade-tq:${{ github.event.inputs.tag || github.ref_name }}"
 
       - name: Prepare SSH
         run: |
@@ -40,23 +50,24 @@ jobs:
           mkdir -p /tmp/.ssh && chmod 700 /tmp/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > /tmp/.ssh/id_ed25519
           chmod 600 /tmp/.ssh/id_ed25519
-          ssh-keyscan -p 2222 192.168.50.11 >> /tmp/.ssh/known_hosts
+          ssh-keyscan -p "${{ vars.DEPLOY_SSH_PORT }}" "${{ vars.DEPLOY_HOST }}" >> /tmp/.ssh/known_hosts
 
-      - name: Deploy to NAS
+      - name: Deploy
         run: |
-          ssh -o StrictHostKeyChecking=no -i /tmp/.ssh/id_ed25519 mkadrlik@192.168.50.11 -p 2222 << 'SSH_EOF'
-            cd /home/mkadrlik/docker/lemonade-tq
+          ssh -o StrictHostKeyChecking=no -i /tmp/.ssh/id_ed25519 \
+              "${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}" -p "${{ vars.DEPLOY_SSH_PORT }}" << 'SSH_EOF'
+            cd "${DEPLOY_PATH}"
             docker compose down
-            sed -i "s|image: .*|image: 192.168.50.11:5001/lemonade-tq:${TAG}|g" docker-compose.yml
+            sed -i "s|image: .*|image: ${REGISTRY}/${TAG}|g" docker-compose.yml
             docker compose up -d
             sleep 30
             if docker inspect --format='{{.State.Health.Status}}' lemonade-tq-server | grep -q healthy; then
-              echo "✅ Deployment successful"
+              echo "Deployment successful"
             else
               if [ "${FORCE}" = "true" ]; then
-                echo "⚠️ Health check failed but force_deploy=true, keeping deployment"
+                echo "Health check failed but force_deploy=true, keeping deployment"
               else
-                echo "❌ Health check failed - rolling back"
+                echo "Health check failed - rolling back"
                 docker compose down && git checkout docker-compose.yml && docker compose up -d
                 exit 1
               fi
@@ -65,3 +76,5 @@ jobs:
         env:
           TAG: ${{ github.event.inputs.tag || github.ref_name }}
           FORCE: ${{ github.event.inputs.force_deploy }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+          REGISTRY: ${{ vars.REGISTRY_URL }}/lemonade-tq
