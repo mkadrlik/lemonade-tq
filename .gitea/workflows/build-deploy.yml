@@ -12,7 +12,6 @@ jobs:
 
       - name: Build Docker image
         run: |
-          cd ~/docker/lemonade-tq
           docker build -t 192.168.50.11:5000/lemonade-tq:${{ github.ref_name }} .
 
       - name: Push to local registry
