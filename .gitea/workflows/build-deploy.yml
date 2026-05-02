@@ -3,6 +3,12 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:  # ← Adds manual trigger in Gitea UI
+    inputs:
+      tag:
+        description: 'Image tag to build'
+        required: false
+        default: 'latest'
 
 jobs:
   build-and-deploy:
