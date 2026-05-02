@@ -3,7 +3,7 @@ on:
   push:
     tags:
       - 'v*'
-  workflow_dispatch:  # ← Adds manual trigger in Gitea UI
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
@@ -15,26 +15,45 @@ jobs:
 
       - name: Checkout code
         run: |
-          git clone http://192.168.50.11:3042/mkadrlik/lemonade-tq.git /tmp/lemonade-tq
+          git clone --depth 1 http://192.168.50.11:3042/mkadrlik/lemonade-tq.git /tmp/lemonade-tq
           cd /tmp/lemonade-tq
           git checkout ${{ github.ref_name }}
 
       - name: Build Docker image
         run: |
           cd /tmp/lemonade-tq
-          docker build -t 192.168.50.11:5001/lemonade-tq:${{ github.ref_name }} .
+          docker build -t 192.168.50.11:5001/lemonade-tq:${{ github.event.inputs.tag || github.ref_name }} .
 
       - name: Push to local registry
         run: |
-          docker push 192.168.50.11:5001/lemonade-tq:${{ github.ref_name }}
+          docker push 192.168.50.11:5001/lemonade-tq:${{ github.event.inputs.tag || github.ref_name }}
+
+      - name: Install SSH
+        run: |
+          apt-get update && apt-get install -y openssh-client
 
       - name: Deploy to NAS
         run: |
           ssh -o StrictHostKeyChecking=no mkadrlik@192.168.50.11 << 'SSH_EOF'
             cd /home/mkadrlik/docker/lemonade-tq
+            docker compose down
             sed -i "s|image: .*|image: 192.168.50.11:5001/lemonade-tq:${TAG}|g" docker-compose.yml
-            docker compose pull
             docker compose up -d
+            sleep 30
+            if docker inspect --format='{{.State.Health.Status}}' lemonade-tq-server | grep -q healthy; then
+              echo "✅ Deployment successful"
+            else
+              if [ "${FORCE}" = "true" ]; then
+                echo "⚠️ Health check failed but force_deploy=true, keeping deployment"
+              else
+                echo "❌ Health check failed - rolling back"
+                docker compose down
+                git checkout docker-compose.yml
+                docker compose up -d
+                exit 1
+              fi
+            fi
           SSH_EOF
         env:
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+          FORCE: ${{ github.event.inputs.force_deploy }}
