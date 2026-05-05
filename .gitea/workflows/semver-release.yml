@@ -93,20 +93,24 @@ jobs:
                   git tag -a ${{ steps.version.outputs.version }} -m "Release ${{ steps.version.outputs.version }}"
                   git push origin ${{ steps.version.outputs.version }}
 
+            - name: Login to ghcr.io
+              run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
+
             - name: Build and push Docker image
               run: |
+                  IMAGE="ghcr.io/mkadrlik/lemonade-tq"
                   cd /tmp
                   rm -rf lemonade-tq-build
                   git clone "${{ vars.GITEAURL }}/mkadrlik/lemonade-tq.git" lemonade-tq-build
                   cd lemonade-tq-build
 
-                  docker build -t "${{ vars.REGISTRY_URL }}/lemonade-tq:${{ steps.version.outputs.version }}" .
-                  docker build -t "${{ vars.REGISTRY_URL }}/lemonade-tq:${{ steps.version.outputs.short_sha }}" .
-                  docker build -t "${{ vars.REGISTRY_URL }}/lemonade-tq:latest" .
+                  docker build -t "${IMAGE}:${{ steps.version.outputs.version }}" .
+                  docker tag "${IMAGE}:${{ steps.version.outputs.version }}" "${IMAGE}:${{ steps.version.outputs.short_sha }}"
+                  docker tag "${IMAGE}:${{ steps.version.outputs.version }}" "${IMAGE}:latest"
 
-                  docker push "${{ vars.REGISTRY_URL }}/lemonade-tq:${{ steps.version.outputs.version }}"
-                  docker push "${{ vars.REGISTRY_URL }}/lemonade-tq:${{ steps.version.outputs.short_sha }}"
-                  docker push "${{ vars.REGISTRY_URL }}/lemonade-tq:latest"
+                  docker push "${IMAGE}:${{ steps.version.outputs.version }}"
+                  docker push "${IMAGE}:${{ steps.version.outputs.short_sha }}"
+                  docker push "${IMAGE}:latest"
 
             - name: Deploy to NAS
               run: |
@@ -127,7 +131,7 @@ jobs:
               env:
                   TAG: ${{ steps.version.outputs.version }}
                   DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
-                  REGISTRY: ${{ vars.REGISTRY_URL }}/lemonade-tq
+                  REGISTRY: ghcr.io/mkadrlik/lemonade-tq
 
             - name: Mirror tag to GitHub
               run: |

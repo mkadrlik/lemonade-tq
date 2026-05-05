@@ -16,9 +16,10 @@ on:
 
 # Required repository secrets:
 #   SSH_PRIVATE_KEY  — Ed25519 key for deploy host access
+#   GHCR_TOKEN       — GitHub PAT for ghcr.io push
+#   GHCR_USERNAME    — GitHub username for ghcr.io login
 # Required repository variables:
 #   GITEAURL          — e.g., http://gitea.internal:3042
-#   REGISTRY_URL      — e.g., registry.internal:5000
 #   DEPLOY_HOST       — e.g., nas.internal
 #   DEPLOY_USER       — e.g., deploy
 #   DEPLOY_SSH_PORT   — e.g., 2222
@@ -36,13 +37,17 @@ jobs:
                   git clone --depth 1 "${{ vars.GITEAURL }}/mkadrlik/lemonade-tq.git" /tmp/lemonade-tq
                   cd /tmp/lemonade-tq && git checkout ${{ github.ref_name }}
 
+            - name: Login to ghcr.io
+              run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
+
             - name: Build Docker image
               run: |
+                  IMAGE="ghcr.io/mkadrlik/lemonade-tq"
                   cd /tmp/lemonade-tq
-                  docker build -t "${{ vars.REGISTRY_URL }}/lemonade-tq:${{ github.event.inputs.tag || github.ref_name }}" .
+                  docker build -t "${IMAGE}:${{ github.event.inputs.tag || github.ref_name }}" .
 
-            - name: Push to registry
-              run: docker push "${{ vars.REGISTRY_URL }}/lemonade-tq:${{ github.event.inputs.tag || github.ref_name }}"
+            - name: Push to ghcr.io
+              run: docker push "ghcr.io/mkadrlik/lemonade-tq:${{ github.event.inputs.tag || github.ref_name }}"
 
             - name: Prepare SSH
               run: |
@@ -58,7 +63,7 @@ jobs:
                       "${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}" -p "${{ vars.DEPLOY_SSH_PORT }}" << 'SSH_EOF'
                     cd "${DEPLOY_PATH}"
                     docker compose down
-                    sed -i "s|image: .*|image: ${REGISTRY}/${TAG}|g" docker-compose.yml
+                    sed -i "s|image: .*|image: ${REGISTRY}:${TAG}|g" docker-compose.yml
                     docker compose up -d
                     sleep 30
                     if docker inspect --format='{{.State.Health.Status}}' lemonade-tq-server | grep -q healthy; then
@@ -77,4 +82,4 @@ jobs:
                   TAG: ${{ github.event.inputs.tag || github.ref_name }}
                   FORCE: ${{ github.event.inputs.force_deploy }}
                   DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
-                  REGISTRY: ${{ vars.REGISTRY_URL }}/lemonade-tq
+                  REGISTRY: ghcr.io/mkadrlik/lemonade-tq
