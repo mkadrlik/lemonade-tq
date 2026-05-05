@@ -21,5 +21,5 @@ jobs:
                   cd /tmp/lemonade-tq-mirror
                   git remote remove github 2>/dev/null || true
                   git remote add github "https://${{ secrets.GHCR_TOKEN }}@github.com/mkadrlik/lemonade-tq.git"
-                  git remote prune github
+                  git pull github
                   git push github main --tags
