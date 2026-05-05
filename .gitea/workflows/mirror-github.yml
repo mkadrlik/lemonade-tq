@@ -1,26 +1,33 @@
 name: Mirror to GitHub
 on:
-    push:
-        branches: [main]
-    schedule:
-        - cron: "0 */6 * * *"
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 */6 * * *"
 
 jobs:
-    mirror:
-        runs-on: [self-hosted, rocm]
-        steps:
-            - name: Cleanup previous run
-              run: rm -rf /tmp/lemonade-tq-mirror
+  mirror:
+    runs-on: [self-hosted, rocm]
+    steps:
+      - name: Cleanup previous run
+        run: rm -rf /tmp/lemonade-tq-mirror
 
-            - name: Checkout code
-              run: |
-                  git clone "${{ vars.GITEAURL }}/mkadrlik/lemonade-tq.git" /tmp/lemonade-tq-mirror
+      - name: Checkout code
+        run: |
+          git clone "${{ vars.GITEAURL }}/mkadrlik/lemonade-tq.git" /tmp/lemonade-tq-mirror
 
-            - name: Push to GitHub
-              run: |
-                  cd /tmp/lemonade-tq-mirror
-                  git remote remove github 2>/dev/null || true
-                  git remote add github "https://${{ secrets.GHCR_TOKEN }}@github.com/mkadrlik/lemonade-tq.git"
-                  git fetch github main
-                  git merge --strategy=ours github/main -m "Merge GitHub changes" || true
-                  git push github main --tags
+      - name: Exclude .gitea from mirror
+        run: |
+          cd /tmp/lemonade-tq-mirror
+          rm -rf .gitea/
+          git add -A
+          git commit --allow-empty -m "ci: exclude .gitea from GitHub mirror" || true
+
+      - name: Push to GitHub
+        run: |
+          cd /tmp/lemonade-tq-mirror
+          git remote remove github 2>/dev/null || true
+          git remote add github "https://${{ secrets.GHCR_TOKEN }}@github.com/mkadrlik/lemonade-tq.git"
+          git fetch github main
+          git merge --strategy=ours github/main -m "Merge GitHub changes" || true
+          git push github main --tags
