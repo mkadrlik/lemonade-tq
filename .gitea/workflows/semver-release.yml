@@ -106,10 +106,9 @@ jobs:
 
             - name: Mirror tag to GitHub
               run: |
-                  cd /tmp/lemonade-tq
-                  rm -rf .gitea/
-                  git add -A
-                  git commit --allow-empty -m "ci: exclude .gitea from GitHub mirror" || true
+                  cd /tmp/lemonade-tq-mirror
                   git remote remove github 2>/dev/null || true
                   git remote add github "https://${{ secrets.GHCR_TOKEN }}@github.com/mkadrlik/lemonade-tq.git"
-                  git push github main --tags --force-with-lease
+                  git fetch github main
+                  git merge --strategy=ours github/main -m "Merge GitHub changes" || true
+                  git push github main --tags
