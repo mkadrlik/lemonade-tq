@@ -23,9 +23,9 @@ jobs:
 
       - name: Validate commit messages
         run: |
-          # Conventional Commits regex pattern
-          PATTERN='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?(!)?: .+$'
-          # Merge commit pattern
+          # Conventional Commits regex pattern (includes merge as a valid type)
+          PATTERN='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert|merge)(\(.+\))?(!)?: .+$'
+          # Merge commit pattern (allows "Merge branch...", "Merge remote-tracking...", etc.)
           MERGE_PATTERN='^Merge .+$'
 
           # Check all commits in this push
