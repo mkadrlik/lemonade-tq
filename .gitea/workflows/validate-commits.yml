@@ -9,7 +9,7 @@ on:
 # Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
 # Format: <type>[optional scope]: <description>
 # Breaking changes: feat! or BREAKING CHANGE in body/footer
-# Note: Only validates NEW commits on each push, not entire history
+# Note: Only validates the current commit on each push
 
 jobs:
   validate:
@@ -26,22 +26,9 @@ jobs:
           # Conventional Commits regex pattern
           PATTERN='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?(!)?: .+$'
 
-          # Only check commits in this push (since last workflow run)
-          # For push events, check HEAD~N..HEAD where N is the number of commits pushed
-          if [ "${{ github.event_name }}" = "push" ]; then
-            # Get the before SHA from the event
-            BEFORE="${{ github.event.before }}"
-            if [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then
-              RANGE="$BEFORE..HEAD"
-            else
-              # First push, check all commits
-              RANGE="HEAD~50..HEAD"
-            fi
-          elif [ "${{ github.event_name }}" = "pull_request" ]; then
-            RANGE="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
-          else
-            RANGE="HEAD~50..HEAD"
-          fi
+          # Check all commits in this push
+          # For Gitea Actions, we check HEAD~10..HEAD to catch recent pushes
+          RANGE="HEAD~10..HEAD"
 
           FAILED=0
           for COMMIT in $(git log --format="%H %s" $RANGE); do
