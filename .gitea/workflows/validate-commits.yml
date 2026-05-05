@@ -9,7 +9,7 @@ on:
 # Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
 # Format: <type>[optional scope]: <description>
 # Breaking changes: feat! or BREAKING CHANGE in body/footer
-# Note: Only validates the current commit on each push
+# Note: Only validates the current commit on each push, allows merge commits
 
 jobs:
   validate:
@@ -25,6 +25,8 @@ jobs:
         run: |
           # Conventional Commits regex pattern
           PATTERN='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?(!)?: .+$'
+          # Merge commit pattern
+          MERGE_PATTERN='^Merge .+$'
 
           # Check all commits in this push
           # For Gitea Actions, we check HEAD~10..HEAD to catch recent pushes
@@ -34,6 +36,11 @@ jobs:
           for COMMIT in $(git log --format="%H %s" $RANGE); do
             SHA=$(echo "$COMMIT" | cut -d' ' -f1)
             MSG=$(echo "$COMMIT" | cut -d' ' -f2-)
+
+            # Allow merge commits
+            if echo "$MSG" | grep -qE "$MERGE_PATTERN"; then
+              continue
+            fi
 
             if ! echo "$MSG" | grep -qE "$PATTERN"; then
               echo "INVALID: $SHA - $MSG"
