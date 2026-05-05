@@ -90,10 +90,10 @@ jobs:
 
             - name: Build and push Docker image
               run: |
-                  IMAGE="ghcr.io/mkadrlik/llama-cpp-cpu-tq"
+                  IMAGE="ghcr.io/mkadrlik/lemonade-tq"
                   cd /tmp
                   rm -rf lemonade-tq
-                  git clone "${{ vars.GITEAURL }}/mkadrlik/llama-cpp-cpu-tq.git" lemonade-tq
+                  git clone "${{ vars.GITEAURL }}/mkadrlik/lemonade-tq.git" lemonade-tq
                   cd lemonade-tq
 
                   docker build -t "${IMAGE}:${{ steps.version.outputs.version }}" .
@@ -111,5 +111,5 @@ jobs:
                   git add -A
                   git commit --allow-empty -m "ci: exclude .gitea from GitHub mirror" || true
                   git remote remove github 2>/dev/null || true
-                  git remote add github "https://${{ secrets.GHCR_TOKEN }}@github.com/mkadrlik/llama-cpp-cpu-tq.git"
+                  git remote add github "https://${{ secrets.GHCR_TOKEN }}@github.com/mkadrlik/lemonade-tq.git"
                   git push github main --tags --force-with-lease
