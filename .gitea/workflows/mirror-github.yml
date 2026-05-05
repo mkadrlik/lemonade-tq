@@ -14,10 +14,11 @@ jobs:
 
             - name: Checkout code
               run: |
-                  git clone "${{ vars.GITEA_URL }}/mkadrlik/lemonade-tq.git" /tmp/lemonade-tq-mirror
+                  git clone "${{ vars.GITEAURL }}/mkadrlik/lemonade-tq.git" /tmp/lemonade-tq-mirror
 
             - name: Push to GitHub
               run: |
                   cd /tmp/lemonade-tq-mirror
-                  git remote add github "https://${{ secrets.GHCR_TOKEN }}@github.com/mkadrlik/lemonade-tq.git" 2>/dev/null || true
-                  git push github main --tags
+                  git remote remove github 2>/dev/null || true
+                  git remote add github "https://${{ secrets.GHCR_TOKEN }}@github.com/mkadrlik/lemonade-tq.git"
+                  git push github main --tags --force-with-lease
