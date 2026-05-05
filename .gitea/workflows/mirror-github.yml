@@ -1,26 +1,23 @@
 name: Mirror to GitHub
 on:
-  push:
-    branches: [ main ]
-  schedule:
-    - cron: '0 */6 * * *'
-
-# Required repository secrets:
-#   GITHUB_TOKEN  — GitHub personal access token with repo scope
+    push:
+        branches: [main]
+    schedule:
+        - cron: "0 */6 * * *"
 
 jobs:
-  mirror:
-    runs-on: [self-hosted, rocm]
-    steps:
-      - name: Cleanup previous run
-        run: rm -rf /tmp/lemonade-tq-mirror
+    mirror:
+        runs-on: [self-hosted, rocm]
+        steps:
+            - name: Cleanup previous run
+              run: rm -rf /tmp/lemonade-tq-mirror
 
-      - name: Checkout code
-        run: |
-          git clone "${{ vars.GITEA_URL }}/mkadrlik/lemonade-tq.git" /tmp/lemonade-tq-mirror
+            - name: Checkout code
+              run: |
+                  git clone "${{ vars.GITEA_URL }}/mkadrlik/lemonade-tq.git" /tmp/lemonade-tq-mirror
 
-      - name: Push to GitHub
-        run: |
-          cd /tmp/lemonade-tq-mirror
-          git remote add github "https://${{ secrets.GITHUB_TOKEN }}@github.com/mkadrlik/lemonade-tq.git" 2>/dev/null || true
-          git push github main --tags
+            - name: Push to GitHub
+              run: |
+                  cd /tmp/lemonade-tq-mirror
+                  git remote add github "https://${{ secrets.GHCR_TOKEN }}@github.com/mkadrlik/lemonade-tq.git" 2>/dev/null || true
+                  git push github main --tags

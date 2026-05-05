@@ -1,23 +1,23 @@
 name: Build & Deploy
 on:
-  push:
-    tags:
-      - 'v*'
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Image tag to build'
-        required: false
-        default: 'latest'
-      force_deploy:
-        description: 'Force deploy even if health check fails'
-        required: false
-        default: 'false'
+    push:
+        tags:
+            - "v*"
+    workflow_dispatch:
+        inputs:
+            tag:
+                description: "Image tag to build"
+                required: false
+                default: "latest"
+            force_deploy:
+                description: "Force deploy even if health check fails"
+                required: false
+                default: "false"
 
 # Required repository secrets:
 #   SSH_PRIVATE_KEY  — Ed25519 key for deploy host access
 # Required repository variables:
-#   GITEA_URL         — e.g., http://gitea.internal:3042
+#   GITEAURL          — e.g., http://gitea.internal:3042
 #   REGISTRY_URL      — e.g., registry.internal:5000
 #   DEPLOY_HOST       — e.g., nas.internal
 #   DEPLOY_USER       — e.g., deploy
@@ -25,56 +25,56 @@ on:
 #   DEPLOY_PATH       — e.g., /home/deploy/docker/lemonade-tq
 
 jobs:
-  build-and-deploy:
-    runs-on: [self-hosted, rocm]
-    steps:
-      - name: Cleanup previous run
-        run: rm -rf /tmp/lemonade-tq /tmp/.ssh
+    build-and-deploy:
+        runs-on: [self-hosted, rocm]
+        steps:
+            - name: Cleanup previous run
+              run: rm -rf /tmp/lemonade-tq /tmp/.ssh
 
-      - name: Checkout code
-        run: |
-          git clone --depth 1 "${{ vars.GITEA_URL }}/mkadrlik/lemonade-tq.git" /tmp/lemonade-tq
-          cd /tmp/lemonade-tq && git checkout ${{ github.ref_name }}
+            - name: Checkout code
+              run: |
+                  git clone --depth 1 "${{ vars.GITEAURL }}/mkadrlik/lemonade-tq.git" /tmp/lemonade-tq
+                  cd /tmp/lemonade-tq && git checkout ${{ github.ref_name }}
 
-      - name: Build Docker image
-        run: |
-          cd /tmp/lemonade-tq
-          docker build -t "${{ vars.REGISTRY_URL }}/lemonade-tq:${{ github.event.inputs.tag || github.ref_name }}" .
+            - name: Build Docker image
+              run: |
+                  cd /tmp/lemonade-tq
+                  docker build -t "${{ vars.REGISTRY_URL }}/lemonade-tq:${{ github.event.inputs.tag || github.ref_name }}" .
 
-      - name: Push to registry
-        run: docker push "${{ vars.REGISTRY_URL }}/lemonade-tq:${{ github.event.inputs.tag || github.ref_name }}"
+            - name: Push to registry
+              run: docker push "${{ vars.REGISTRY_URL }}/lemonade-tq:${{ github.event.inputs.tag || github.ref_name }}"
 
-      - name: Prepare SSH
-        run: |
-          apk update && apk add --no-cache openssh
-          mkdir -p /tmp/.ssh && chmod 700 /tmp/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > /tmp/.ssh/id_ed25519
-          chmod 600 /tmp/.ssh/id_ed25519
-          ssh-keyscan -p "${{ vars.DEPLOY_SSH_PORT }}" "${{ vars.DEPLOY_HOST }}" >> /tmp/.ssh/known_hosts
+            - name: Prepare SSH
+              run: |
+                  apk update && apk add --no-cache openssh
+                  mkdir -p /tmp/.ssh && chmod 700 /tmp/.ssh
+                  echo "${{ secrets.SSH_PRIVATE_KEY }}" > /tmp/.ssh/id_ed25519
+                  chmod 600 /tmp/.ssh/id_ed25519
+                  ssh-keyscan -p "${{ vars.DEPLOY_SSH_PORT }}" "${{ vars.DEPLOY_HOST }}" >> /tmp/.ssh/known_hosts
 
-      - name: Deploy
-        run: |
-          ssh -o StrictHostKeyChecking=no -i /tmp/.ssh/id_ed25519 \
-              "${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}" -p "${{ vars.DEPLOY_SSH_PORT }}" << 'SSH_EOF'
-            cd "${DEPLOY_PATH}"
-            docker compose down
-            sed -i "s|image: .*|image: ${REGISTRY}/${TAG}|g" docker-compose.yml
-            docker compose up -d
-            sleep 30
-            if docker inspect --format='{{.State.Health.Status}}' lemonade-tq-server | grep -q healthy; then
-              echo "Deployment successful"
-            else
-              if [ "${FORCE}" = "true" ]; then
-                echo "Health check failed but force_deploy=true, keeping deployment"
-              else
-                echo "Health check failed - rolling back"
-                docker compose down && git checkout docker-compose.yml && docker compose up -d
-                exit 1
-              fi
-            fi
-          SSH_EOF
-        env:
-          TAG: ${{ github.event.inputs.tag || github.ref_name }}
-          FORCE: ${{ github.event.inputs.force_deploy }}
-          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
-          REGISTRY: ${{ vars.REGISTRY_URL }}/lemonade-tq
+            - name: Deploy
+              run: |
+                  ssh -o StrictHostKeyChecking=no -i /tmp/.ssh/id_ed25519 \
+                      "${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}" -p "${{ vars.DEPLOY_SSH_PORT }}" << 'SSH_EOF'
+                    cd "${DEPLOY_PATH}"
+                    docker compose down
+                    sed -i "s|image: .*|image: ${REGISTRY}/${TAG}|g" docker-compose.yml
+                    docker compose up -d
+                    sleep 30
+                    if docker inspect --format='{{.State.Health.Status}}' lemonade-tq-server | grep -q healthy; then
+                      echo "Deployment successful"
+                    else
+                      if [ "${FORCE}" = "true" ]; then
+                        echo "Health check failed but force_deploy=true, keeping deployment"
+                      else
+                        echo "Health check failed - rolling back"
+                        docker compose down && git checkout docker-compose.yml && docker compose up -d
+                        exit 1
+                      fi
+                    fi
+                  SSH_EOF
+              env:
+                  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+                  FORCE: ${{ github.event.inputs.force_deploy }}
+                  DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+                  REGISTRY: ${{ vars.REGISTRY_URL }}/lemonade-tq
