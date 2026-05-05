@@ -27,14 +27,6 @@ jobs:
               with:
                   fetch-depth: 0
 
-            - name: Prepare SSH
-              run: |
-                  apk update && apk add --no-cache openssh
-                  mkdir -p /tmp/.ssh && chmod 700 /tmp/.ssh
-                  echo "${{ secrets.SSH_PRIVATE_KEY }}" > /tmp/.ssh/id_ed25519
-                  chmod 600 /tmp/.ssh/id_ed25519
-                  ssh-keyscan -p "${{ vars.DEPLOY_SSH_PORT }}" "${{ vars.DEPLOY_HOST }}" >> /tmp/.ssh/known_hosts
-
             - name: Determine version bump
               id: version
               run: |
@@ -98,11 +90,11 @@ jobs:
 
             - name: Build and push Docker image
               run: |
-                  IMAGE="ghcr.io/mkadrlik/lemonade-tq"
+                  IMAGE="ghcr.io/mkadrlik/llama-cpp-cpu-tq"
                   cd /tmp
-                  rm -rf lemonade-tq-build
-                  git clone "${{ vars.GITEAURL }}/mkadrlik/lemonade-tq.git" lemonade-tq-build
-                  cd lemonade-tq-build
+                  rm -rf llama-cpp-cpu-tq-build
+                  git clone "${{ vars.GITEAURL }}/mkadrlik/llama-cpp-cpu-tq.git" llama-cpp-cpu-tq-build
+                  cd llama-cpp-cpu-tq-build
 
                   docker build -t "${IMAGE}:${{ steps.version.outputs.version }}" .
                   docker tag "${IMAGE}:${{ steps.version.outputs.version }}" "${IMAGE}:${{ steps.version.outputs.short_sha }}"
@@ -112,33 +104,12 @@ jobs:
                   docker push "${IMAGE}:${{ steps.version.outputs.short_sha }}"
                   docker push "${IMAGE}:latest"
 
-            - name: Deploy to NAS
-              run: |
-                  ssh -o StrictHostKeyChecking=no -i /tmp/.ssh/id_ed25519 \
-                      "${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}" -p "${{ vars.DEPLOY_SSH_PORT }}" << 'SSH_EOF'
-                    cd "${DEPLOY_PATH}"
-                    docker compose down
-                    sed -i "s|image: .*|image: ${REGISTRY}:${TAG}|g" docker-compose.yml
-                    docker compose up -d
-                    sleep 30
-                    if docker inspect --format='{{.State.Health.Status}}' lemonade-tq-server | grep -q healthy; then
-                      echo "Deployment successful"
-                    else
-                      echo "Health check failed"
-                      exit 1
-                    fi
-                  SSH_EOF
-              env:
-                  TAG: ${{ steps.version.outputs.version }}
-                  DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
-                  REGISTRY: ghcr.io/mkadrlik/lemonade-tq
-
             - name: Mirror tag to GitHub
               run: |
-                  cd /tmp/lemonade-tq-build
+                  cd /tmp/llama-cpp-cpu-tq-build
                   rm -rf .gitea/
                   git add -A
                   git commit --allow-empty -m "ci: exclude .gitea from GitHub mirror" || true
                   git remote remove github 2>/dev/null || true
-                  git remote add github "https://${{ secrets.GHCR_TOKEN }}@github.com/mkadrlik/lemonade-tq.git"
-                  git push github ${{ steps.version.outputs.version }} --force-with-lease
+                  git remote add github "https://${{ secrets.GHCR_TOKEN }}@github.com/mkadrlik/llama-cpp-cpu-tq.git"
+                  git push github main --tags --force-with-lease
