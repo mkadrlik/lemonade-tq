@@ -92,9 +92,9 @@ jobs:
               run: |
                   IMAGE="ghcr.io/mkadrlik/llama-cpp-cpu-tq"
                   cd /tmp
-                  rm -rf llama-cpp-cpu-tq-build
-                  git clone "${{ vars.GITEAURL }}/mkadrlik/llama-cpp-cpu-tq.git" llama-cpp-cpu-tq-build
-                  cd llama-cpp-cpu-tq-build
+                  rm -rf lemonade-tq
+                  git clone "${{ vars.GITEAURL }}/mkadrlik/llama-cpp-cpu-tq.git" lemonade-tq
+                  cd lemonade-tq
 
                   docker build -t "${IMAGE}:${{ steps.version.outputs.version }}" .
                   docker tag "${IMAGE}:${{ steps.version.outputs.version }}" "${IMAGE}:${{ steps.version.outputs.short_sha }}"
@@ -106,7 +106,7 @@ jobs:
 
             - name: Mirror tag to GitHub
               run: |
-                  cd /tmp/llama-cpp-cpu-tq-build
+                  cd /tmp/lemonade-tq
                   rm -rf .gitea/
                   git add -A
                   git commit --allow-empty -m "ci: exclude .gitea from GitHub mirror" || true
