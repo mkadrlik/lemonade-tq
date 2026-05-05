@@ -1,14 +1,15 @@
 # Binary artifacts (build from llama-cpp-*-tq repos)
-llama/
+**llama/**
 
 # Environment (contains tokens)
-.env
+**.env**
 
 # Home-lab specific configs (use home-lab branch)
 # Uncomment if working on main branch locally:
-# config/config.json
-# config/recipe_options.json
-# docker-compose.yml
+config/config.json
+config/recipe_options.json
+docker-compose.yml
+**.gitea**
 
 # Build artifacts
 *.tar
