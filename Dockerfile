@@ -2,15 +2,14 @@
 # lemonade-tq
 # Custom Lemonade SDK inference server with TurboQuant support.
 #
-# Supports three backends via --build-arg BACKEND=rocm|nvidia|cpu
+# Supports three backends: rocm, vulkan, cpu
+# Backend selection is entirely runtime via LEMONADE_LLAMACPP_BACKEND env var
+# and docker-compose volume mounts — no build args needed.
 #
 # Usage:
-#   docker build -t lemonade-tq .                              # default: rocm
-#   docker build --build-arg BACKEND=nvidia -t lemonade-tq .   # nvidia
-#   docker build --build-arg BACKEND=cpu -t lemonade-tq .      # cpu
+#   docker build -t lemonade-tq .              # single image, all backends
+#   docker compose up -d                       # set LEMONADE_LLAMACPP_BACKEND in .env
 ###############################################################################
-
-ARG BACKEND=rocm
 
 FROM ghcr.io/lemonade-sdk/lemonade-server:latest
 
@@ -18,9 +17,10 @@ FROM ghcr.io/lemonade-sdk/lemonade-server:latest
 RUN apt-get update && apt-get install -y --no-install-recommends curl && \
     rm -rf /var/lib/apt/lists/*
 
-# Create backend directory for custom llama-server binary
+# Create backend directories for custom llama-server binaries
 # (mounted from host via docker-compose volume)
-RUN mkdir -p /opt/lemonade/llama/${BACKEND:-rocm}
+# All three backends supported — no build arg needed.
+RUN mkdir -p /opt/lemonade/llama/{rocm,vulkan,cpu}
 
 # Copy and set entrypoint script
 COPY entrypoint.sh /entrypoint.sh

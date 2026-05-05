@@ -11,17 +11,10 @@ networks:
 
 services:
     lemonade-tq:
-        # Build from local Dockerfile, or use a pre-built image:
-        # build:
-        #     context: .
-        #     args:
-        #         # Backend: rocm (default), nvidia, or cpu
-        #         BACKEND: ${LEMONADE_LLAMACPP_BACKEND}
         image: ${LEMONADE_IMAGE}
         restart: unless-stopped
         ipc: shareable
         container_name: lemonade-tq-server
-
         # ─── ROCm (AMD) GPU access ───────────────────────────────────
         # Remove this section for NVIDIA (use deploy.resources instead)
         devices:
@@ -31,13 +24,10 @@ services:
         # _____________________________________________________________
         security_opt:
             - seccomp=unconfined
-
         networks:
             - backend
-
         ports:
             - "${LEMONADE_PORT:-13305}:13305"
-
         volumes:
             # Persistent caches
             - lemonade-tq-cache:/root/.cache/huggingface
@@ -86,7 +76,6 @@ services:
             timeout: 10s
             retries: 3
             start_period: 60s
-
         logging:
             driver: json-file
             options:
