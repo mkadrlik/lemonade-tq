@@ -9,6 +9,7 @@ on:
 # Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
 # Format: <type>[optional scope]: <description>
 # Breaking changes: feat! or BREAKING CHANGE in body/footer
+# Note: Only validates NEW commits on each push, not entire history
 
 jobs:
   validate:
@@ -23,21 +24,23 @@ jobs:
       - name: Validate commit messages
         run: |
           # Conventional Commits regex pattern
-          # Matches: type(scope): description or type: description
-          # Also matches: type!(scope): description (breaking change)
           PATTERN='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?(!)?: .+$'
 
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            # Check all commits in the PR
-            RANGE="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
-          else
-            # Check all commits since last tag or last 50 commits
-            LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-            if [ -n "$LAST_TAG" ]; then
-              RANGE="$LAST_TAG..HEAD"
+          # Only check commits in this push (since last workflow run)
+          # For push events, check HEAD~N..HEAD where N is the number of commits pushed
+          if [ "${{ github.event_name }}" = "push" ]; then
+            # Get the before SHA from the event
+            BEFORE="${{ github.event.before }}"
+            if [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then
+              RANGE="$BEFORE..HEAD"
             else
+              # First push, check all commits
               RANGE="HEAD~50..HEAD"
             fi
+          elif [ "${{ github.event_name }}" = "pull_request" ]; then
+            RANGE="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+          else
+            RANGE="HEAD~50..HEAD"
           fi
 
           FAILED=0
