@@ -1,0 +1,61 @@
+name: Validate Conventional Commits
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Conventional Commits spec: https://www.conventionalcommits.org/en/v1.0.0/
+# Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
+# Format: <type>[optional scope]: <description>
+# Breaking changes: feat! or BREAKING CHANGE in body/footer
+
+jobs:
+  validate:
+    name: Validate Commits
+    runs-on: [self-hosted, linux]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate commit messages
+        run: |
+          # Conventional Commits regex pattern
+          # Matches: type(scope): description or type: description
+          # Also matches: type!(scope): description (breaking change)
+          PATTERN='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?(!)?: .+$'
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # Check all commits in the PR
+            RANGE="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+          else
+            # Check all commits since last tag or last 50 commits
+            LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+            if [ -n "$LAST_TAG" ]; then
+              RANGE="$LAST_TAG..HEAD"
+            else
+              RANGE="HEAD~50..HEAD"
+            fi
+          fi
+
+          FAILED=0
+          for COMMIT in $(git log --format="%H %s" $RANGE); do
+            SHA=$(echo "$COMMIT" | cut -d' ' -f1)
+            MSG=$(echo "$COMMIT" | cut -d' ' -f2-)
+
+            if ! echo "$MSG" | grep -qE "$PATTERN"; then
+              echo "INVALID: $SHA - $MSG"
+              FAILED=1
+            fi
+          done
+
+          if [ $FAILED -eq 1 ]; then
+            echo "::error::Commit messages must follow Conventional Commits spec"
+            echo "::error::Format: type(scope)!: description"
+            echo "::error::Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert"
+            exit 1
+          fi
+
+          echo "All commits follow Conventional Commits spec"

@@ -1,0 +1,128 @@
+name: SemVer Release
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release type (auto, major, minor, patch)'
+        required: true
+        default: 'auto'
+        type: choice
+        options:
+          - auto
+          - major
+          - minor
+          - patch
+
+# Auto-detection: Scans commits since last tag and bumps accordingly
+# feat: -> minor, fix: -> patch, feat!: or BREAKING CHANGE -> major
+# Manual override: Force specific bump type
+
+jobs:
+  release:
+    name: Generate SemVer Tag
+    runs-on: [self-hosted, linux]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine version bump
+        id: version
+        run: |
+          # Get current version or start at 0.1.0
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null | grep -oE 'v?[0-9]+\.[0-9]+\.[0-9]+' || echo "0.1.0")
+          # Remove 'v' prefix if present
+          CURRENT="${LAST_TAG#v}"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+
+          # Auto-detect bump type from commits
+          if [ "${{ github.event.inputs.release_type }}" = "auto" ]; then
+            COMMITS=$(git log ${LAST_TAG}..HEAD --oneline 2>/dev/null || git log --oneline -50)
+
+            # Check for breaking changes first
+            if echo "$COMMITS" | grep -qE '(feat|fix|refactor)!\:|BREAKING CHANGE'; then
+              BUMP="major"
+            elif echo "$COMMITS" | grep -qE '^feat\:'; then
+              BUMP="minor"
+            elif echo "$COMMITS" | grep -qE '^fix\:'; then
+              BUMP="patch"
+            else
+              BUMP="patch"
+            fi
+          else
+            BUMP="${{ github.event.inputs.release_type }}"
+          fi
+
+          # Apply bump
+          case $BUMP in
+            major)
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+              ;;
+            minor)
+              MINOR=$((MINOR + 1))
+              PATCH=0
+              ;;
+            patch)
+              PATCH=$((PATCH + 1))
+              ;;
+          esac
+
+          NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+          SHORT_SHA=$(git rev-parse --short=7 HEAD)
+
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+          echo "bump=$BUMP" >> $GITHUB_OUTPUT
+          echo "Previous: $LAST_TAG -> New: $NEW_VERSION ($BUMP)"
+
+      - name: Create and push tag
+        run: |
+          git config user.name "Gitea Actions"
+          git config user.email "actions@gitea.local"
+          git tag -a ${{ steps.version.outputs.version }} -m "Release ${{ steps.version.outputs.version }}"
+          git push origin ${{ steps.version.outputs.version }}
+
+      - name: Build and push Docker image
+        run: |
+          cd /tmp
+          rm -rf lemonade-tq-build
+          git clone "${{ vars.GITEAURL }}/mkadrlik/lemonade-tq.git" lemonade-tq-build
+          cd lemonade-tq-build
+
+          docker build -t "${{ vars.REGISTRY_URL }}/lemonade-tq:${{ steps.version.outputs.version }}" .
+          docker build -t "${{ vars.REGISTRY_URL }}/lemonade-tq:${{ steps.version.outputs.short_sha }}" .
+          docker build -t "${{ vars.REGISTRY_URL }}/lemonade-tq:latest" .
+
+          docker push "${{ vars.REGISTRY_URL }}/lemonade-tq:${{ steps.version.outputs.version }}"
+          docker push "${{ vars.REGISTRY_URL }}/lemonade-tq:${{ steps.version.outputs.short_sha }}"
+          docker push "${{ vars.REGISTRY_URL }}/lemonade-tq:latest"
+
+      - name: Deploy to NAS
+        run: |
+          ssh -o StrictHostKeyChecking=no -i /tmp/.ssh/id_ed25519 \
+              "${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}" -p "${{ vars.DEPLOY_SSH_PORT }}" << 'SSH_EOF'
+            cd "${DEPLOY_PATH}"
+            docker compose down
+            sed -i "s|image: .*|image: ${REGISTRY}:${TAG}|g" docker-compose.yml
+            docker compose up -d
+            sleep 30
+            if docker inspect --format='{{.State.Health.Status}}' lemonade-tq-server | grep -q healthy; then
+              echo "Deployment successful"
+            else
+              echo "Health check failed"
+              exit 1
+            fi
+          SSH_EOF
+        env:
+          TAG: ${{ steps.version.outputs.version }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+          REGISTRY: ${{ vars.REGISTRY_URL }}/lemonade-tq
+
+      - name: Mirror tag to GitHub
+        run: |
+          git remote remove github 2>/dev/null || true
+          git remote add github "https://${{ secrets.GHCR_TOKEN }}@github.com/mkadrlik/lemonade-tq.git"
+          git push github ${{ steps.version.outputs.version }} --force-with-lease
