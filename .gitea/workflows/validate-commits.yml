@@ -6,10 +6,10 @@ on:
     branches: [main]
 
 # Conventional Commits spec: https://www.conventionalcommits.org/en/v1.0.0/
-# Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
+# Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert, merge
 # Format: <type>[optional scope]: <description>
 # Breaking changes: feat! or BREAKING CHANGE in body/footer
-# Note: Only validates the current commit on each push, allows merge commits
+# Note: Only validates the current commit on each push
 
 jobs:
   validate:
@@ -19,40 +19,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Validate commit messages
         run: |
-          # Conventional Commits regex pattern (includes merge as a valid type)
+          # Conventional Commits regex pattern
           PATTERN='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert|merge)(\(.+\))?(!)?: .+$'
-          # Merge commit pattern (allows "Merge branch...", "Merge remote-tracking...", etc.)
-          MERGE_PATTERN='^Merge .+$'
 
-          # Check all commits in this push
-          # For Gitea Actions, we check HEAD~10..HEAD to catch recent pushes
-          RANGE="HEAD~10..HEAD"
+          # Check only the current commit
+          MSG=$(git log -1 --format="%s")
 
-          FAILED=0
-          for COMMIT in $(git log --format="%H %s" $RANGE); do
-            SHA=$(echo "$COMMIT" | cut -d' ' -f1)
-            MSG=$(echo "$COMMIT" | cut -d' ' -f2-)
-
-            # Allow merge commits
-            if echo "$MSG" | grep -qE "$MERGE_PATTERN"; then
-              continue
-            fi
-
-            if ! echo "$MSG" | grep -qE "$PATTERN"; then
-              echo "INVALID: $SHA - $MSG"
-              FAILED=1
-            fi
-          done
-
-          if [ $FAILED -eq 1 ]; then
-            echo "::error::Commit messages must follow Conventional Commits spec"
+          if ! echo "$MSG" | grep -qE "$PATTERN"; then
+            echo "::error::Commit message does not follow Conventional Commits spec"
+            echo "::error::Message: $MSG"
             echo "::error::Format: type(scope)!: description"
-            echo "::error::Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert"
+            echo "::error::Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert, merge"
             exit 1
           fi
 
-          echo "All commits follow Conventional Commits spec"
+          echo "Commit follows Conventional Commits spec: $MSG"
