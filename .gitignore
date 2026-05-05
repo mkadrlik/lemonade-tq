@@ -10,6 +10,8 @@ config/config.json
 config/recipe_options.json
 docker-compose.yml
 **.gitea**
+!.gitea/
+!.gitea/**
 
 # Build artifacts
 *.tar
