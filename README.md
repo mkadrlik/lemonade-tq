@@ -4,13 +4,14 @@
 
 ## Overview
 
-lemonade-tq wraps the Lemonade SDK server with a custom-built `llama-server` binary compiled from [llama.cpp with TurboQuant](https://github.com/domvox/llama.cpp-turboquant-hip). It provides:
+lemonade-tq wraps the Lemonade SDK server with a custom-built `llama-server` binary compiled from [llama.cpp with TurboQuant](https://github.com/TheTom/llama-cpp-turboquant). It provides:
 
 - **TurboQuant 3-bit KV cache** — 5.12x compression, <0.1% perplexity cost
-- **Multi-GPU tensor parallelism** — Split Mode Graph via NCCL
+- **Multi-GPU tensor parallelism** — Split Mode Graph
 - **Auto-loading models** — Configure models to load on startup
 - **Health checks** — Built-in curl-based health endpoint
-- **Three backend variants** — ROCm (AMD), NVIDIA CUDA, or CPU-only
+- **Three backend variants** — ROCm (AMD), Vulkan, or CPU-only
+- **Parameterized deployment** — All settings via `.env` file
 
 ## Architecture
 
@@ -25,58 +26,82 @@ lemonade-tq wraps the Lemonade SDK server with a custom-built `llama-server` bin
 │  │  ┌─────────────────────────────┐    │    │
 │  │  │  llama-server (custom)      │    │    │
 │  │  │  TurboQuant + Split Mode    │    │    │
-│  │  │  Backend: ROCm/CUDA/CPU     │    │    │
+│  │  │  Backend: ROCm/Vulkan/CPU   │    │    │
 │  │  └─────────────────────────────┘    │    │
 │  └─────────────────────────────────────┘    │
 │                                             │
 │  entrypoint.sh → auto-load models           │
 └─────────────────────────────────────────────┘
          ▲                    ▲
-         │                    └─ Host ROCm/CUDA libs (ro)
+         │                    └─ Host GPU libs (ro)
          └─ Model GGUF files (volume mount)
 ```
 
 ## Quick Start
 
-### 1. Build the image
+### 1. Configure
 
 ```bash
-# ROCm (AMD GPUs) — default
-docker build -t lemonade-tq .
+# Copy the example environment file
+cp .env.example .env
 
-# NVIDIA GPUs
-docker build --build-arg BACKEND=nvidia -t lemonade-tq .
-
-# CPU-only
-docker build --build-arg BACKEND=cpu -t lemonade-tq .
+# Edit .env for your hardware (backend, GPUs, models)
+nano .env
 ```
 
-### 2. Configure
+Key settings in `.env`:
 
-Copy `docker-compose.yml.example` to `docker-compose.yml` and customize:
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LEMONADE_IMAGE` | `mkadrlik/lemonade-tq:latest` | Pre-built server image |
+| `LEMONADE_PORT` | `13305` | Host port mapping |
+| `LEMONADE_HOST` | `0.0.0.0` | Bind address |
+| `LEMONADE_LLAMACPP_BACKEND` | `rocm` | Backend: `rocm`, `vulkan`, or `cpu` |
+| `TQ_REGISTRY` | `ghcr.io` | TurboQuant image registry |
+| `TQ_USER` | `mkadrlik` | TurboQuant image owner |
+| `TQ_TAG` | `latest` | TurboQuant image tag |
+| `GHCR_TOKEN` | *(empty)* | GitHub PAT for private image pull |
+| `HSA_OVERRIDE_GFX_VERSION` | `11.0.0` | ROCm GPU architecture override |
+| `HIP_VISIBLE_DEVICES` | `0,1,2` | ROCm GPU indices |
+| `LEMONADE_LLAMACPP_ARGS` | *(empty)* | TurboQuant + llama-server flags |
+| `AUTO_LOAD_MODELS` | *(empty)* | Space-separated model names |
 
-```bash
-cp docker-compose.yml.example docker-compose.yml
-# Edit docker-compose.yml for your hardware
-```
-
-Key configuration files:
-- `config/config.json` — Lemonade server settings
-- `config/recipe_options.json` — Per-model overrides (context size, backend, args)
-- `config/50-local.conf` — Environment variable overrides
-
-### 3. Deploy
+### 2. Deploy
 
 ```bash
 docker compose up -d
 docker compose logs -f
 ```
 
+The entrypoint will:
+1. Detect required backends from `config.json` + `recipe_options.json`
+2. Pull TurboQuant images from `ghcr.io` and extract `llama-server` binaries
+3. Start the Lemonade server
+4. Auto-load configured models
+
+### 3. Build from source (optional)
+
+If you need a custom build, uncomment the `build:` section in `docker-compose.yml` and comment out `image:`:
+
+```yaml
+# image: ${LEMONADE_IMAGE}
+build:
+    context: .
+    args:
+        BACKEND: ${LEMONADE_LLAMACPP_BACKEND}
+```
+
+## Configuration Files
+
+- `.env` — Environment variables (copy from `.env.example`)
+- `config/config.json` — Lemonade server settings
+- `config/recipe_options.json` — Per-model overrides (context size, backend, args)
+
 ## TurboQuant Configuration
 
 ### Global Arguments
 
-Set via `LEMONADE_LLAMACPP_ARGS` in docker-compose.yml or `config/50-local.conf`:
+Set via `LEMONADE_LLAMACPP_ARGS` in `.env`:
 
 ```bash
 # Global defaults for all models
@@ -85,7 +110,7 @@ LEMONADE_LLAMACPP_ARGS="--sm tensor -ngl 99 -ctk turbo3 -ctv turbo3 --tensor-spl
 
 | Flag | Value | Description |
 |------|-------|-------------|
-| `--sm` | `tensor` / `graph` | Split Mode: tensor parallelism or NCCL graph |
+| `--sm` | `tensor` / `graph` | Split Mode: tensor parallelism or graph |
 | `-ngl` | `99` | Offload all layers to GPU |
 | `-ctk` | `turbo` / `turbo3` | TurboQuant key cache compression |
 | `-ctv` | `turbo` / `turbo3` | TurboQuant value cache compression |
@@ -108,11 +133,10 @@ In `config/recipe_options.json`, override per model:
 
 ## Auto-Loading Models
 
-Set the `AUTO_LOAD_MODELS` environment variable (space-separated model names):
+Set the `AUTO_LOAD_MODELS` environment variable in `.env` (space-separated model names):
 
-```yaml
-environment:
-  AUTO_LOAD_MODELS: "Model1-GGUF Model2-GGUF Model3-GGUF"
+```bash
+AUTO_LOAD_MODELS="Model1-GGUF Model2-GGUF Model3-GGUF"
 ```
 
 Models are loaded sequentially after the server health check passes.
@@ -121,43 +145,29 @@ Models are loaded sequentially after the server health check passes.
 
 ### ROCm (AMD)
 
-```yaml
-devices:
-  - /dev/kfd
-  - /dev/dri
-security_opt:
-  - seccomp=unconfined
-environment:
-  LEMONADE_LLAMACPP_BACKEND: rocm
-  HSA_OVERRIDE_GFX_VERSION: "11.0.0"    # For RDNA2/RDNA3
-  HIP_VISIBLE_DEVICES: "0,1,2"           # Which GPUs to use
-volumes:
-  - /opt/rocm:/opt/rocm:ro              # ROCm runtime from host
-  - ./llama/rocm/llama-server:/opt/lemonade/llama/rocm/llama-server:ro
+Default backend. Set in `.env`:
+
+```bash
+LEMONADE_LLAMACPP_BACKEND=rocm
+HSA_OVERRIDE_GFX_VERSION=11.0.0    # For RDNA2/RDNA3
+HIP_VISIBLE_DEVICES=0,1,2           # Which GPUs to use
 ```
 
-### NVIDIA (CUDA)
+The compose file mounts:
+- `/dev/kfd`, `/dev/dri`, `/dev/mem` for GPU access
+- `/opt/rocm:/opt/rocm:ro` for ROCm runtime
+- `./llama/rocm/llama-server` for the custom binary
 
-```yaml
-deploy:
-  resources:
-    reservations:
-      devices:
-        - driver: nvidia
-          count: 3                        # Number of GPUs
-environment:
-  LEMONADE_LLAMACPP_BACKEND: cuda
-volumes:
-  - ./llama/cuda/llama-server:/opt/lemonade/llama/cuda/llama-server:ro
+### Vulkan
+
+```bash
+LEMONADE_LLAMACPP_BACKEND=vulkan
 ```
 
 ### CPU
 
-```yaml
-environment:
-  LEMONADE_LLAMACPP_BACKEND: cpu
-volumes:
-  - ./llama/cpu/llama-server:/opt/lemonade/llama/cpu/llama-server:ro
+```bash
+LEMONADE_LLAMACPP_BACKEND=cpu
 ```
 
 ## Building Custom llama-server
@@ -165,7 +175,7 @@ volumes:
 Use the companion repos to build a TurboQuant-enabled `llama-server`:
 
 - [llama-cpp-rocm-tq](https://github.com/mkadrlik/llama-cpp-rocm-tq) — AMD ROCm
-- [llama-cpp-nvidia-tq](https://github.com/mkadrlik/llama-cpp-nvidia-tq) — NVIDIA CUDA
+- [llama-cpp-vulkan-tq](https://github.com/mkadrlik/llama-cpp-vulkan-tq) — Vulkan
 - [llama-cpp-cpu-tq](https://github.com/mkadrlik/llama-cpp-cpu-tq) — CPU-only
 
 ```bash
@@ -175,6 +185,8 @@ docker create --name tmp llama-server-rocm
 docker cp tmp:/usr/local/bin/llama-server ./llama/rocm/llama-server
 docker rm tmp
 ```
+
+Or use the pre-built images from `ghcr.io/mkadrlik/llama-cpp-{rocm,vulkan,cpu}-tq:latest` — the entrypoint will auto-extract the binary on startup.
 
 ## API
 
@@ -204,9 +216,9 @@ curl http://localhost:13305/health
 1. **Always use TurboQuant** (`-ctk turbo3 -ctv turbo3`) — 5x more context for the same VRAM
 2. **Use Flash Attention** (`-fa on`) — reduces memory for attention-heavy models
 3. **Tensor-split evenly** — `--tensor-split 1,1,1` for 3 identical GPUs
-4. **Set context size per model** — larger context = more memory, use recipe_options.json
+4. **Set context size per model** — larger context = more memory, use `recipe_options.json`
 5. **Monitor VRAM** — Lemonade shows per-model memory usage in the Web UI
 
 ## License
 
-Lemonade SDK: Apache 2.0. TurboQuant patches by domvox. This wrapper: MIT.
+Lemonade SDK: Apache 2.0. TurboQuant patches by TheTom. This wrapper: MIT.
