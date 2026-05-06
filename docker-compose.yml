@@ -11,7 +11,7 @@ networks:
 
 services:
     lemonade-tq:
-        image: ${LEMONADE_IMAGE:-ghcr.io/mkadrlik/lemonade-tq:tq-baked}
+        image: ${LEMONADE_IMAGE:-ghcr.io/mkadrlik/lemonade-tq:latest}
         restart: unless-stopped
         ipc: shareable
         container_name: lemonade-tq-server
