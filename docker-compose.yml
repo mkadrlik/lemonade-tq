@@ -1,8 +1,8 @@
 ###############################################################################
-# lemonade-tq — Generic docker-compose example
+# lemonade-tq — Docker Compose configuration
 #
-# Copy to docker-compose.yml and customize for your environment.
-# See README.md for NVIDIA/CPU variants.
+# All persistent data is stored in ./data/ (self-contained, no named volumes).
+# Uses TurboQuant-enabled llama-server baked into the image.
 ###############################################################################
 
 networks:
@@ -11,63 +11,49 @@ networks:
 
 services:
     lemonade-tq:
-        image: ${LEMONADE_IMAGE}
+        image: ${LEMONADE_IMAGE:-ghcr.io/mkadrlik/lemonade-tq:tq-baked}
         restart: unless-stopped
         ipc: shareable
         container_name: lemonade-tq-server
+
         # ─── ROCm (AMD) GPU access ───────────────────────────────────
-        # Remove this section for NVIDIA (use deploy.resources instead)
         devices:
             - /dev/kfd
             - /dev/dri
             - /dev/mem
         # _____________________________________________________________
+
         security_opt:
             - seccomp=unconfined
         networks:
             - backend
         ports:
-            - "${LEMONADE_PORT:-13305}:13305"
+            - "${LEMONADE_PORT:-13306}:13305"
+
         volumes:
-            # Persistent caches
-            - lemonade-tq-cache:/root/.cache/huggingface
-            - lemonade-tq-llama:/opt/lemonade/llama
-            - lemonade-tq-recipe:/root/.cache/lemonade
+            # All persistent data in ./data/ (self-contained)
+            - ./data/cache:/root/.cache/huggingface
+            - ./data/recipe:/root/.cache/lemonade
 
             # Configuration
             - ./config/config.json:/root/.cache/lemonade/config.json:rw
             - ./config/recipe_options.json:/root/.cache/lemonade/recipe_options.json:rw
             - ./config:/root/.config/lemonade:rw
 
-            # Custom llama-server binary (build from llama-cpp-*-tq repos)
-            # Change `LEMONADE_LLAMACPP_BACKEND` from 'rocm' to 'cuda' or 'cpu' to match your BACKEND
-            - ./llama/${LEMONADE_LLAMACPP_BACKEND-rocm}/llama-server:/opt/lemonade/llama/${LEMONADE_LLAMACPP_BACKEND-rocm}/llama-server:ro
-
-            # ROCm runtime from host (remove for NVIDIA/CPU)
-            - /opt/${LEMONADE_LLAMACPP_BACKEND-rocm}:/opt/${LEMONADE_LLAMACPP_BACKEND-rocm}:ro
+            # ROCm runtime from host
+            - /opt/${LEMONADE_LLAMACPP_BACKEND:-rocm}:/opt/${LEMONADE_LLAMACPP_BACKEND:-rocm}:ro
 
         environment:
-            # Backend selection
             LEMONADE_LLAMACPP_BACKEND: ${LEMONADE_LLAMACPP_BACKEND:-rocm}
-
-            # Server
             LEMONADE_HOST: ${LEMONADE_HOST:-0.0.0.0}
-            LEMONADE_PORT: ${LEMONADE_PORT:-13305}
-
-            # ROCm-specific (remove for NVIDIA/CPU)
-            HSA_OVERRIDE_GFX_VERSION: ${HSA_OVERRIDE_GFX_VERSION}
-            HIP_VISIBLE_DEVICES: ${HIP_VISIBLE_DEVICES}
-
-            # TurboQuant + Split Mode Graph defaults
-            LEMONADE_LLAMACPP_ARGS: ${LEMONADE_LLAMACPP_ARGS-:""}
-            LD_LIBRARY_PATH: /opt/rocm/lib
-
-            # Auto-load models (space-separated, or leave empty)
-            AUTO_LOAD_MODELS: ""
+            LEMONADE_PORT: ${LEMONADE_PORT:-13306}
+            HSA_OVERRIDE_GFX_VERSION: ${HSA_OVERRIDE_GFX_VERSION:-11.0.0}
+            HIP_VISIBLE_DEVICES: ${HIP_VISIBLE_DEVICES:-0,1,2}
+            LEMONADE_LLAMACPP_ARGS: ${LEMONADE_LLAMACPP_ARGS:---sm tensor -ngl 99 -ctk turbo3 -ctv turbo3 --tensor-split 1,1,1}
+            LD_LIBRARY_PATH: /opt/lemonade/llama/rocm:/opt/rocm/lib
 
         group_add:
             - video
-            # ROCm render group (adjust for your system)
             - 993
 
         healthcheck:
@@ -76,14 +62,10 @@ services:
             timeout: 10s
             retries: 3
             start_period: 60s
+
         logging:
             driver: json-file
             options:
                 max-size: "10m"
                 max-file: "3"
                 tag: "lemonade-tq"
-
-volumes:
-    lemonade-tq-cache:
-    lemonade-tq-llama:
-    lemonade-tq-recipe:
