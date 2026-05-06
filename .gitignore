@@ -4,6 +4,7 @@ build-bin/
 
 # Environment (contains tokens)
 .env
+!.env.example
 
 # Home-lab specific configs (use home-lab branch)
 # Uncomment if working on main branch locally:
