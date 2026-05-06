@@ -1,0 +1,77 @@
+name: CI
+
+# All workflow logic lives in mkadrlik/actions-workflows
+# This file wires up triggers and passes repo-specific inputs
+
+on:
+  push:
+    branches: [main, "fix/*"]
+    tags:
+      - "v*"
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag to build"
+        required: false
+        default: "latest"
+      force_deploy:
+        description: "Force deploy even if health check fails"
+        required: false
+        default: "false"
+        type: boolean
+      release_type:
+        description: "Release type (auto, major, minor, patch)"
+        required: false
+        default: "auto"
+        type: choice
+        options:
+          - auto
+          - major
+          - minor
+          - patch
+
+jobs:
+  validate:
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    uses: mkadrlik/actions-workflows/.gitea/workflows/validate-commits.yml@main
+
+  build-deploy:
+    if: github.event_name == 'push' && (github.ref_type == 'tag' || github.ref == 'refs/heads/main')
+    uses: mkadrlik/actions-workflows/.gitea/workflows/build-and-deploy.yml@main
+    with:
+      image_name: mkadrlik/lemonade-tq
+      repo_name: lemonade-tq
+      runs_on: rocm
+      tag: ${{ github.event.inputs.tag || github.ref_name }}
+      force_deploy: ${{ github.event.inputs.force_deploy || 'false' }}
+    secrets:
+      GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+      GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+
+  build-deploy-dispatch:
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.release_type == ''
+    uses: mkadrlik/actions-workflows/.gitea/workflows/build-and-deploy.yml@main
+    with:
+      image_name: mkadrlik/lemonade-tq
+      repo_name: lemonade-tq
+      runs_on: rocm
+      tag: ${{ github.event.inputs.tag }}
+      force_deploy: ${{ github.event.inputs.force_deploy }}
+    secrets:
+      GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+      GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+
+  semver:
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.release_type != ''
+    uses: mkadrlik/actions-workflows/.gitea/workflows/semver-release.yml@main
+    with:
+      image_name: mkadrlik/lemonade-tq
+      repo_name: lemonade-tq
+      runs_on: rocm
+    secrets:
+      GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+      GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
