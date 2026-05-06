@@ -17,9 +17,9 @@ RUN mkdir -p /opt/lemonade/llama/{rocm,vulkan,cpu}
 
 # Copy TurboQuant-enabled llama-server binary + shared libs from llama-cpp-rocm-tq image
 COPY --from=llama-cpp-rocm-tq:fix-paths /usr/local/bin/llama-server /opt/lemonade/llama/rocm/llama-server
-COPY --from=llama-cpp-rocm-tq:fix-paths /usr/local/lib/libggml*.so* /opt/lemonade/llama/rocm/
-COPY --from=llama-cpp-rocm-tq:fix-paths /usr/local/lib/libllama*.so* /opt/lemonade/llama/rocm/
-COPY --from=llama-cpp-rocm-tq:fix-paths /usr/local/lib/libmtmd*.so* /opt/lemonade/llama/rocm/
+COPY --from=llama-cpp-rocm-tq:fix-paths /usr/local/lib/libggml* /opt/lemonade/llama/rocm/
+COPY --from=llama-cpp-rocm-tq:fix-paths /usr/local/lib/libllama* /opt/lemonade/llama/rocm/
+COPY --from=llama-cpp-rocm-tq:fix-paths /usr/local/lib/libmtmd* /opt/lemonade/llama/rocm/
 
 # Set library path so llama-server can find its shared libs
 ENV LD_LIBRARY_PATH=/opt/lemonade/llama/rocm:${LD_LIBRARY_PATH:-/opt/rocm/lib}

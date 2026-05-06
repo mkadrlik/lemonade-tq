@@ -13,11 +13,11 @@
     "cpu_bin": "builtin"
   },
   "llamacpp": {
-    "args": "--sm tensor -ngl 99 -ctk turbo3 -ctv turbo3 --tensor-split 1,1,1",
+    "args": "-fit off --sm layer -ngl 99 -ctk turbo3 -ctv turbo3 --tensor-split 1,1,1",
     "backend": "auto",
     "cpu_bin": "builtin",
     "prefer_system": true,
-    "rocm_bin": "builtin",
+    "rocm_bin": "/opt/lemonade/llama/rocm/llama-server",
     "vulkan_bin": "builtin"
   },
   "log_level": "info",

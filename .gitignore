@@ -1,5 +1,6 @@
 # Binary artifacts (build from llama-cpp-*-tq repos)
 **llama/**
+build-bin/
 
 # Environment (contains tokens)
 .env
@@ -20,3 +21,4 @@ docker-compose.yml
 # OS files
 .DS_Store
 Thumbs.db
+data/
