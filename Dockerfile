@@ -22,8 +22,21 @@ COPY --from=ghcr.io/mkadrlik/llama-cpp-rocm-tq:latest /usr/local/lib/libggml* /o
 COPY --from=ghcr.io/mkadrlik/llama-cpp-rocm-tq:latest /usr/local/lib/libllama* /opt/lemonade/llama/rocm/
 COPY --from=ghcr.io/mkadrlik/llama-cpp-rocm-tq:latest /usr/local/lib/libmtmd* /opt/lemonade/llama/rocm/
 
+# Copy Vulkan TurboQuant binary + shared libs from llama-cpp-vulkan-tq image
+COPY --from=ghcr.io/mkadrlik/llama-cpp-vulkan-tq:latest /usr/local/bin/llama-server /opt/lemonade/llama/vulkan/llama-server
+COPY --from=ghcr.io/mkadrlik/llama-cpp-vulkan-tq:latest /usr/local/lib/libggml* /opt/lemonade/llama/vulkan/
+COPY --from=ghcr.io/mkadrlik/llama-cpp-vulkan-tq:latest /usr/local/lib/libllama* /opt/lemonade/llama/vulkan/
+COPY --from=ghcr.io/mkadrlik/llama-cpp-vulkan-tq:latest /usr/local/lib/libmtmd* /opt/lemonade/llama/vulkan/
+
+# Create wrapper for Vulkan binary to isolate its LD_LIBRARY_PATH
+# (Vulkan and ROCm libs are different versions and conflict)
+RUN echo '#!/bin/bash' > /opt/lemonade/llama/vulkan/llama-server-wrapper.sh && \
+    echo 'export LD_LIBRARY_PATH=/opt/lemonade/llama/vulkan' >> /opt/lemonade/llama/vulkan/llama-server-wrapper.sh && \
+    echo 'exec /opt/lemonade/llama/vulkan/llama-server "$@"' >> /opt/lemonade/llama/vulkan/llama-server-wrapper.sh && \
+    chmod +x /opt/lemonade/llama/vulkan/llama-server-wrapper.sh
+
 # Set library path so llama-server can find its shared libs
-ENV LD_LIBRARY_PATH=/opt/lemonade/llama/rocm:${LD_LIBRARY_PATH:-/opt/rocm/lib}
+ENV LD_LIBRARY_PATH=/opt/lemonade/llama/rocm:/opt/lemonade/llama/vulkan:${LD_LIBRARY_PATH:-/opt/rocm/lib}
 
 # Copy and set entrypoint script
 COPY entrypoint.sh /entrypoint.sh

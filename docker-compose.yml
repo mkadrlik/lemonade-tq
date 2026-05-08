@@ -51,7 +51,7 @@ services:
             HIP_VISIBLE_DEVICES: ${HIP_VISIBLE_DEVICES:-0,1,2}
             LEMONADE_LLAMACPP_ARGS: ${LEMONADE_LLAMACPP_ARGS:---fit off --sm layer -ngl 99 -ctk turbo3 -ctv turbo3 --tensor-split 1,1,1}
             AUTO_LOAD_MODELS: ${AUTO_LOAD_MODELS:-}
-            LD_LIBRARY_PATH: /opt/lemonade/llama/rocm:/opt/rocm/lib
+            LD_LIBRARY_PATH: /opt/lemonade/llama/vulkan:/opt/lemonade/llama/rocm:/opt/rocm/lib
 
         group_add:
             - video
