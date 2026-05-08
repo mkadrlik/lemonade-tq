@@ -7,7 +7,7 @@
   "flm": {
     "args": ""
   },
-  "global_timeout": 300,
+  "global_timeout": 3600,
   "host": "0.0.0.0",
   "kokoro": {
     "cpu_bin": "builtin"

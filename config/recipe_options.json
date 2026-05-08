@@ -20,22 +20,22 @@
     "llamacpp_backend": "vulkan"
   },
   "Qwen3.5-0.8B-GGUF": {
-    "ctx_size": 8192,
+    "ctx_size": 113000,
     "llamacpp_args": "-fit off --temp 0.7 --top-p 0.95",
     "llamacpp_backend": "vulkan"
   },
   "Qwen3.5-2B-GGUF": {
-    "ctx_size": 8192,
+    "ctx_size": 113000,
     "llamacpp_args": "-fit off --temp 0.7 --top-p 0.95",
     "llamacpp_backend": "vulkan"
   },
   "Qwen3.5-4B-GGUF": {
-    "ctx_size": 8192,
+    "ctx_size": 113000,
     "llamacpp_args": "-fit off --temp 0.7 --top-p 0.95",
     "llamacpp_backend": "vulkan"
   },
   "Qwen3.5-9B-GGUF": {
-    "ctx_size": 8192,
+    "ctx_size": 113000,
     "llamacpp_args": "-fit off --temp 0.7 --top-p 0.95",
     "llamacpp_backend": "vulkan"
   },
@@ -45,7 +45,7 @@
     "llamacpp_backend": "vulkan"
   },
   "Qwen3.6-35B-A3B-GGUF": {
-    "ctx_size": 8192,
+    "ctx_size": 113000,
     "llamacpp_args": "-fit on --n-cpu-moe 20 -fa on --temp 0.6 --top-p 0.95 --top-k 20 --min-p 0.0 --presence-penalty 0.0 --repeat-penalty 1.0 --reasoning-budget -1 --tensor-split 1,1,1 --main-gpu 0",
     "llamacpp_backend": "vulkan"
   },
@@ -75,8 +75,8 @@
     "llamacpp_backend": "vulkan"
   },
   "user.Qwen3.6-35B-A3B-Uncensored-Wasserstein-GGUF": {
-    "ctx_size": 226000,
-    "llamacpp_args": "-fit off --n-cpu-moe 20 -fa on --temp 0.6 --top-p 0.95 --top-k 20 --min-p 0.0 --presence-penalty 0.0 --repeat-penalty 1.0 --reasoning-budget -1 --tensor-split 1,1,1 --main-gpu 0",
+    "ctx_size": 113000,
+    "llamacpp_args": "-fit on --n-cpu-moe 20 -fa on --temp 0.6 --top-p 0.95 --top-k 20 --min-p 0.0 --presence-penalty 0.0 --repeat-penalty 1.0 --reasoning-budget -1 --tensor-split 1,1,1 --main-gpu 0",
     "llamacpp_backend": "vulkan"
   }
 }
