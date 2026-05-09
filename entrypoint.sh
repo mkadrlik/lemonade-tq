@@ -1,6 +1,14 @@
 #!/bin/bash
 set -e
 
+# Create symlink for libopenblas.so.0 -> libopenblaso.so.0
+# (Vulkan binary expects libopenblas.so.0 but host provides libopenblaso.so.0)
+if [ -f /lib64/libopenblaso.so.0 ] && [ ! -f /tmp/libopenblas.so.0 ]; then
+    ln -s /lib64/libopenblaso.so.0 /tmp/libopenblas.so.0
+    export LD_LIBRARY_PATH="/tmp:/opt/rocm/lib:${LD_LIBRARY_PATH:-}"
+    echo "[entrypoint] Created symlink /tmp/libopenblas.so.0 -> /lib64/libopenblaso.so.0"
+fi
+
 # Models to auto-load on startup (space-separated, override via env)
 : "${AUTO_LOAD_MODELS:=}"
 

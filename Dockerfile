@@ -31,7 +31,7 @@ COPY --from=ghcr.io/mkadrlik/llama-cpp-vulkan-tq:latest /usr/local/lib/libmtmd* 
 # Create wrapper for Vulkan binary to isolate its LD_LIBRARY_PATH
 # (Vulkan and ROCm libs are different versions and conflict)
 RUN echo '#!/bin/bash' > /opt/lemonade/llama/vulkan/llama-server-wrapper.sh && \
-    echo 'export LD_LIBRARY_PATH=/opt/lemonade/llama/vulkan' >> /opt/lemonade/llama/vulkan/llama-server-wrapper.sh && \
+    echo 'export LD_LIBRARY_PATH="/tmp:/opt/lemonade/llama/vulkan:${LD_LIBRARY_PATH:-}"' >> /opt/lemonade/llama/vulkan/llama-server-wrapper.sh && \
     echo 'exec /opt/lemonade/llama/vulkan/llama-server "$@"' >> /opt/lemonade/llama/vulkan/llama-server-wrapper.sh && \
     chmod +x /opt/lemonade/llama/vulkan/llama-server-wrapper.sh
 
