@@ -20,7 +20,8 @@ lemonade-tq
 
 | Backend | Image | Purpose | TurboQuant | Context | Speed |
 |---------|-------|---------|------------|---------|-------|
-| **ROCm** | `ghcr.io/mkadrlik/llama-cpp-rocm-tq:latest` | Long-context inference | Yes (turbo3) | Up to 256K tokens | Slightly slower TG |
+| **ROCm** | `ghcr.io/mkadrlik/llama-cpp-rocm-tq-ubuntu:latest` (Ubuntu) | Long-context inference | Yes (turbo3) | Up to 256K tokens | Slightly slower TG |
+| **ROCm** | `ghcr.io/mkadrlik/llama-cpp-rocm-tq-fedora:latest` (Fedora) | Long-context inference | Yes (turbo3) | Up to 256K tokens | Slightly slower TG |
 | **Vulkan** | `ghcr.io/mkadrlik/llama-cpp-vulkan-tq:latest` | Fast inference | No | Standard contexts | Faster TG |
 
 ### ROCm (Long Context + TurboQuant)
@@ -29,6 +30,12 @@ ROCm is the **only** backend that supports TurboQuant KV cache compression. Use 
 - Context windows beyond 32K tokens
 - TurboQuant compression (3-bit, 5.12x KV cache reduction)
 - Multi-GPU tensor splitting (3x RX 7900 XTX)
+
+**Choose your distro variant:**
+- **Ubuntu 24.04**: Use `llama-cpp-rocm-tq-ubuntu` if your host is Ubuntu
+- **Fedora 44+**: Use `llama-cpp-rocm-tq-fedora` if your host is Fedora/RHEL
+
+The variants exist for glibc compatibility — Ubuntu-built binaries fail on Fedora hosts with `GLIBC_PRIVATE` symbol errors.
 
 **TurboQuant KV Cache Compression:**
 
