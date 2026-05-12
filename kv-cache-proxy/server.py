@@ -39,7 +39,7 @@ import llama_cpp
 # Import our modules
 sys.path.insert(0, str(Path(__file__).parent))
 from checkpoint import CheckpointManager
-from extractor import PartialResponseExtractor
+from extractor import PartialExtractor
 from resume import ResumeHandler, InterruptionState
 
 
@@ -98,7 +98,7 @@ class KVCacheProxyServer:
             cache_dir=config.checkpoint_dir,
             max_checkpoints=config.max_checkpoints,
         )
-        self.extractor = PartialResponseExtractor()
+        self.extractor = PartialExtractor()
         self.resume_handler = ResumeHandler(self.checkpoint_mgr, self.extractor)
         
         # Model state

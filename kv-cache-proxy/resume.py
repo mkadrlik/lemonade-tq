@@ -17,7 +17,7 @@ from typing import Optional, Dict, Any, List, Callable, Awaitable
 from dataclasses import dataclass, field
 
 from checkpoint import CheckpointManager, KVCacheCheckpoint
-from extractor import PartialResponseExtractor, PartialExtractResult
+from extractor import PartialExtractor, PartialExtractResult
 
 
 @dataclass
@@ -76,10 +76,10 @@ class ResumeHandler:
     def __init__(
         self,
         checkpoint_mgr: CheckpointManager,
-        extractor: Optional[PartialResponseExtractor] = None,
+        extractor: Optional[PartialExtractor] = None,
     ):
         self.checkpoint_mgr = checkpoint_mgr
-        self.extractor = extractor or PartialResponseExtractor()
+        self.extractor = extractor or PartialExtractor()
         
         # Active interruptions: model_hash → InterruptionState
         self._interruptions: Dict[str, InterruptionState] = {}

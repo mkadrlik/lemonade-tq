@@ -60,7 +60,7 @@ class PartialExtractResult:
         return "\n".join(lines) if lines else "(no extractable info)"
 
 
-class PartialResponseExtractor:
+class PartialExtractor:
     """
     Extracts key information from a partial (interrupted) model response.
     
