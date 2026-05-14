@@ -22,7 +22,7 @@ lemonade-tq
 |---------|-------|---------|------------|---------|-------|
 | **ROCm** | `ghcr.io/mkadrlik/llama-cpp-rocm-tq-ubuntu:latest` (Ubuntu) | Long-context inference | Yes (turbo3) | Up to 256K tokens | Slightly slower TG |
 | **ROCm** | `ghcr.io/mkadrlik/llama-cpp-rocm-tq-fedora:latest` (Fedora) | Long-context inference | Yes (turbo3) | Up to 256K tokens | Slightly slower TG |
-| **Vulkan** | `ghcr.io/mkadrlik/llama-cpp-vulkan-tq:latest` | Fast inference | No | Standard contexts | Faster TG |
+| **Vulkan** | `ghcr.io/mkadrlik/llama-cpp-vulkan-rocm:latest` | Fast inference | No | Standard contexts | Faster TG |
 
 ### ROCm (Long Context + TurboQuant)
 
@@ -172,7 +172,7 @@ curl "http://localhost:13306/api/v1/models?show_all=true" | python3 -m json.tool
 
 See the following repos on Gitea for build workflows:
 - **ROCm**: `llama-cpp-rocm-tq` — ROCm + TurboQuant, gfx1100 (RX 7900 series)
-- **Vulkan**: `llama-cpp-vulkan-tq` — Vulkan SDK, cross-platform
+- **Vulkan**: `llama-cpp-vulkan-rocm` — Vulkan SDK, CUDA guards for TriAttention
 
 ## Troubleshooting
 
