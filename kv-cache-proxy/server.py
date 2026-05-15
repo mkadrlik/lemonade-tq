@@ -167,7 +167,7 @@ class KVCacheProxyServer:
             self.resume_handler.register_model(
                 self.model_hash,
                 model_path,
-                self.llama.ctx,
+                self.llama,
             )
             
             return web.json_response({
@@ -237,7 +237,7 @@ class KVCacheProxyServer:
             if resume_from and partial_response:
                 return await self._handle_resume(
                     model_hash, messages, stream, max_tokens,
-                    temperature, top_p, resume_from, partial_response,
+                    temperature, top_p, resume_from, partial_response, request,
                 )
             
             # Normal generation with checkpointing
@@ -278,21 +278,22 @@ class KVCacheProxyServer:
         }
         
         if stream:
-            return self._stream_response(
-                generation_id, messages, max_tokens, temperature, top_p,
+            return await self._stream_response(
+                generation_id, messages, max_tokens, temperature, top_p, request,
             )
         else:
             return self._non_stream_response(
                 generation_id, messages, max_tokens, temperature, top_p,
             )
     
-    def _stream_response(
+    async def _stream_response(
         self,
         generation_id: str,
         messages: List[Dict[str, str]],
         max_tokens: int,
         temperature: float,
         top_p: float,
+        request: web.Request,
     ) -> web.StreamResponse:
         """Return a streaming SSE response."""
         response = web.StreamResponse(
@@ -304,7 +305,7 @@ class KVCacheProxyServer:
                 "Connection": "keep-alive",
             },
         )
-        
+
         async def event_stream():
             try:
                 gen = self.llama.create_chat_completion(
@@ -314,27 +315,24 @@ class KVCacheProxyServer:
                     top_p=top_p,
                     stream=True,
                 )
-                
+
                 generation = self._active_generations[generation_id]
-                
+
                 for chunk in gen:
-                    # Check if client is still connected
                     if not response.writer.can_write:
-                        # Client disconnected - capture interruption
                         generation["interrupted"] = True
                         break
-                    
+
                     choice = chunk["choices"][0]
                     delta = choice.get("delta", {})
                     content = delta.get("content", "")
-                    
+
                     if content:
                         generation["partial_response"] += content
                         generation["n_tokens_generated"] += 1
-                    
+
                     yield f"data: {json.dumps(chunk)}\n\n"
-                
-                # Send final event
+
                 final_chunk = {
                     "id": f"chatcmpl-{generation_id}",
                     "object": "chat.completion.chunk",
@@ -348,26 +346,21 @@ class KVCacheProxyServer:
                 }
                 yield f"data: {json.dumps(final_chunk)}\n\n"
                 yield "data: [DONE]\n\n"
-                
+
             except Exception as e:
                 print(f"[server] Generation error: {e}")
                 error_chunk = {"error": str(e)}
                 yield f"data: {json.dumps(error_chunk)}\n\n"
             finally:
-                # Handle interruption
                 generation = self._active_generations.get(generation_id)
                 if generation and generation.get("interrupted"):
                     self._handle_interruption(generation_id)
-                
-                # Cleanup
                 self._active_generations.pop(generation_id, None)
-        
+
+        await response.prepare(request)
         response.enable_chunked_encoding()
-        response.prepare()
-        
-        # Start the streaming coroutine
         asyncio.create_task(event_stream())
-        
+
         return response
     
     def _non_stream_response(
@@ -435,6 +428,7 @@ class KVCacheProxyServer:
         top_p: float,
         resume_from: str,
         partial_response: str,
+        request: web.Request,
     ) -> web.Response:
         """Handle a resume request after interruption."""
         # The resume is handled by building the conversation history
@@ -479,12 +473,13 @@ class KVCacheProxyServer:
         }
         
         if stream:
-            return self._stream_response(
+            return await self._stream_response(
                 generation_id,
                 resume_result.conversation_history,
                 max_tokens,
                 temperature,
                 top_p,
+                request,
             )
         else:
             return self._non_stream_response(

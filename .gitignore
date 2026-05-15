@@ -1,19 +1,9 @@
-# Binary artifacts (build from llama-cpp-*-tq repos)
-**llama/**
-build-bin/
-
-# Environment (contains tokens)
+# Environment-specific files
 .env
 !.env.example
 
-# Home-lab specific configs (use home-lab branch)
-# Uncomment if working on main branch locally:
-config/config.json
-config/recipe_options.json
-docker-compose.yml
-**.gitea**
-!.gitea/
-!.gitea/**
+# Docker logs
+*.log
 
 # Build artifacts
 *.tar
@@ -22,4 +12,10 @@ docker-compose.yml
 # OS files
 .DS_Store
 Thumbs.db
+
+# Data/cache directories
 data/
+
+# Gitea Actions (not mirrored to GitHub)
+.gitea/
+!.gitea/workflows/

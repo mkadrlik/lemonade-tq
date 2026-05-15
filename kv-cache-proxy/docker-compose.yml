@@ -1,0 +1,29 @@
+services:
+  kv-cache-proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: kv-cache-proxy
+    command: ["python3", "server.py", "--model", "/models/models--unsloth--Qwen3.6-27B-GGUF/snapshots/82d411acf4a06cfb8d9b073a5211bf410bfc29bf/Qwen3.6-27B-UD-Q4_K_XL.gguf", "--port", "13307", "--host", "0.0.0.0", "--n-gpu-layers", "-1"]
+    ports:
+      - "13307:13307"
+    environment:
+      - HIP_VISIBLE_DEVICES=0,1,2
+      - HSA_OVERRIDE_GFX_VERSION=11.0.0
+      - LD_LIBRARY_PATH=/opt/rocm/lib:/opt/venv/lib/python3.12/site-packages/llama_cpp/.libs
+    volumes:
+      - /home/mkadrlik/docker/lemonade-tq/data/cache/hub:/models:ro
+      - kv-cache-data:/tmp/kv-cache-checkpoints
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+      - /dev/mem:/dev/mem
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:13307/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
+
+volumes:
+  kv-cache-data:

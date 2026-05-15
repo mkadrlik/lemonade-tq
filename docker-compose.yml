@@ -40,10 +40,6 @@ services:
             - ./config/recipe_options.json:/root/.cache/lemonade/recipe_options.json:rw
             - ./config:/root/.config/lemonade:rw
 
-            # Host libraries for Vulkan backend (OpenBLAS)
-            - /lib64:/lib64:ro
-            - /usr/lib64:/usr/lib64:ro
-
             # ROCm runtime from host
             - /opt/rocm:/opt/rocm:ro
 
@@ -53,9 +49,9 @@ services:
             LEMONADE_PORT: ${LEMONADE_PORT:-13305}
             HSA_OVERRIDE_GFX_VERSION: ${HSA_OVERRIDE_GFX_VERSION:-11.0.0}
             HIP_VISIBLE_DEVICES: ${HIP_VISIBLE_DEVICES:-0,1,2}
-            LEMONADE_LLAMACPP_ARGS: ${LEMONADE_LLAMACPP_ARGS:---fit off --sm layer -ngl 99 -ctk turbo3 -ctv turbo3 --tensor-split 1,1,1 --ubatch-size 4096 --timeout 0}
-            AUTO_LOAD_MODELS: ${AUTO_LOAD_MODELS:-}
-            LD_LIBRARY_PATH: /tmp:/opt/lemonade/llama/vulkan:/opt/lemonade/llama/rocm:/lib64:/usr/lib64:/opt/rocm/lib
+            LEMONADE_LLAMACPP_ARGS: ${LEMONADE_LLAMACPP_ARGS:---fit on --sm layer -ngl 99 --tensor-split 1,1,1 --ubatch-size 4096 --timeout 0}
+            AUTO_LOAD_MODELS: ${AUTO_LOAD_MODELS:-Qwen3.6-27B-GGUF}
+#            LD_LIBRARY_PATH: /tmp:/opt/lemonade/llama/vulkan:/opt/lemonade/llama/rocm:/lib64:/usr/lib64:/opt/rocm/lib
 
         group_add:
             - video

@@ -7,21 +7,21 @@
   "flm": {
     "args": ""
   },
-  "global_timeout": 3600,
+  "global_timeout": 90000,
   "host": "0.0.0.0",
   "kokoro": {
     "cpu_bin": "builtin"
   },
   "llamacpp": {
-    "args": "--tensor-split 1,1,1",
+    "args": "",
     "backend": "auto",
     "cpu_bin": "builtin",
-    "prefer_system": false,
-    "rocm_bin": "/opt/lemonade/llama/rocm/llama-server",
-    "vulkan_bin": "/opt/lemonade/llama/vulkan/llama-server-wrapper.sh"
+    "prefer_system": true,
+    "rocm_bin": "/root/.cache/lemonade/bin/llamacpp/rocm-tq/llama-server-wrapper",
+    "vulkan_bin": "/root/.cache/lemonade/bin/llamacpp/vulkan/llama-server-wrapper.sh"
   },
   "log_level": "info",
-  "max_loaded_models": 4,
+  "max_loaded_models": 1,
   "models_dir": "auto",
   "no_broadcast": false,
   "no_fetch_executables": false,

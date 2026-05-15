@@ -15,6 +15,7 @@ import json
 import time
 import uuid
 import shutil
+import pickle
 from pathlib import Path
 from typing import Optional, Tuple, Dict, Any
 
@@ -75,9 +76,10 @@ class CheckpointManager:
         checkpoint_id = uuid.uuid4().hex[:12]
         t_start = time.time()
         
-        # Save KV cache to bytes
-        cache_data = ctx.kv_cache_save()
-        n_tokens = len(cache_data)
+        # Save state - returns LlamaState object, pickle for storage
+        state_obj = ctx.save_state()
+        cache_data = pickle.dumps(state_obj)
+        n_tokens = state_obj.n_tokens
         
         t_end = time.time()
         
@@ -123,8 +125,9 @@ class CheckpointManager:
             if checkpoint is None:
                 return False, 0
         
-        # Restore KV cache
-        ctx.kv_cache_restore(checkpoint.cache_data)
+        # Restore KV cache - unpickle LlamaState and pass to load_state
+        state_obj = pickle.loads(checkpoint.cache_data)
+        ctx.load_state(state_obj)
         
         # Update memory cache
         self._memory_cache[checkpoint_id] = checkpoint
