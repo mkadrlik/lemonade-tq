@@ -9,6 +9,9 @@
 *.tar
 *.zip
 
+# Runtime binary cache (populated from Docker images)
+build-bin/
+
 # OS files
 .DS_Store
 Thumbs.db
